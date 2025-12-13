@@ -153,12 +153,3 @@ This project is an ongoing learning effort. The following steps outline planned 
 - Analyze trade-offs between model size, quality, and training time
 
 The focus remains on **evaluation, system design, and real-world usability**, rather than scaling model size.
-
-
----
-
-## 📄 License
-
-MIT License.
-
-
