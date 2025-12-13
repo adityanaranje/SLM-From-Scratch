@@ -35,6 +35,9 @@ The model itself does not natively understand dialogue turns.
 | Vocabulary | 8,000 (BPE) |
 | Parameters | ~60M |
 
+![Decoder-only Transformer Architecture](https://github.com/adityanaranje/SLM-From-Scratch/blob/main/Architecture.png)
+
+
 ---
 
 ## 🧠 Completion-Based, Not a Native Chatbot
@@ -157,4 +160,5 @@ The focus remains on **evaluation, system design, and real-world usability**, ra
 ## 📄 License
 
 MIT License.
+
 
