@@ -15,7 +15,7 @@ def download_model():
 download_model()
 
 
-st.set_page_config(page_title="My NanoGPT Chatbot")
+st.set_page_config(page_title="NanoGPT-Completion")
 
 @st.cache_resource
 def load_model():
@@ -64,6 +64,7 @@ if user_input:
 
 for speaker, msg in st.session_state.history:
     st.markdown(f"**{speaker}:** {msg}")
+
 
 
 
