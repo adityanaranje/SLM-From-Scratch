@@ -18,7 +18,7 @@ def load_model():
     )
 
     model = GPT(config)
-    model.load_state_dict(torch.load("Modal/slm_tinystories_personachat.pt", map_location="cpu"))
+    model.load_state_dict(torch.load("https://github.com/adityanaranje/SLM-From-Scratch/releases/download/Model/slm_tinystories_personachat.pt", map_location="cpu"))
     model.eval()
 
     return model, tokenizer
@@ -52,3 +52,4 @@ if user_input:
 
 for speaker, msg in st.session_state.history:
     st.markdown(f"**{speaker}:** {msg}")
+
