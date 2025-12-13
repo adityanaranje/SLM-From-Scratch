@@ -2,6 +2,18 @@ import streamlit as st
 import torch
 from tokenizers import Tokenizer
 from model import GPT, GPTConfig
+import os
+import urllib.request
+
+MODEL_URL = "https://github.com/adityanaranje/SLM-From-Scratch/releases/download/Model/slm_tinystories_personachat.pt"
+MODEL_PATH = "slm_tinystories_personachat.pt"
+
+def download_model():
+    if not os.path.exists(MODEL_PATH):
+        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+
+download_model()
+
 
 st.set_page_config(page_title="My NanoGPT Chatbot")
 
@@ -18,7 +30,7 @@ def load_model():
     )
 
     model = GPT(config)
-    model.load_state_dict(torch.load("https://github.com/adityanaranje/SLM-From-Scratch/releases/download/Model/slm_tinystories_personachat.pt", map_location="cpu"))
+    model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
     model.eval()
 
     return model, tokenizer
@@ -52,4 +64,5 @@ if user_input:
 
 for speaker, msg in st.session_state.history:
     st.markdown(f"**{speaker}:** {msg}")
+
 
