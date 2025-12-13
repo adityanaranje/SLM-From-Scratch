@@ -1,0 +1,3 @@
+torch>=2.0
+streamlit>=1.28
+tokenizers>=0.14
