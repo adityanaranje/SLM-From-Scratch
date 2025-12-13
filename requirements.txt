@@ -1,4 +1,3 @@
 torch>=2.0
 streamlit>=1.28
-urllib
 tokenizers>=0.14
