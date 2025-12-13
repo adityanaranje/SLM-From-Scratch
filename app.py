@@ -37,7 +37,7 @@ def load_model():
 
 model, tokenizer = load_model()
 
-st.title("🧠 Nano-GPT Chatbot")
+st.title("🧠 Nano-GPT Completion")
 
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -64,6 +64,7 @@ if user_input:
 
 for speaker, msg in st.session_state.history:
     st.markdown(f"**{speaker}:** {msg}")
+
 
 
 
