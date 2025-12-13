@@ -45,8 +45,8 @@ if "history" not in st.session_state:
 user_input = st.text_input("You:")
 
 temperature = st.sidebar.slider("Temperature", min_value=0.0, max_value=1.2, step= 0.1, value=0.8)
-max_tokens = st.sidebar.selectbox("Max Tokens",options=[50, 60, 70, 80, 90, 100])
-top_k = st.sidebar.number_input("Top-K", min_value=0, max_value=40, step=1, value=30)
+max_tokens = st.sidebar.selectbox("Max Tokens",options=[30, 40, 50, 60, 70])
+top_k = st.sidebar.number_input("Top-K", min_value=10, max_value=40, step=1, value=30)
 
 if user_input:
     prompt = f"<user> {user_input}\n<assistant>"
@@ -64,5 +64,6 @@ if user_input:
 
 for speaker, msg in st.session_state.history:
     st.markdown(f"**{speaker}:** {msg}")
+
 
 
