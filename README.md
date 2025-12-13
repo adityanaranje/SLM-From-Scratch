@@ -113,6 +113,48 @@ This model is intended strictly for **learning and experimentation**.
 
 ---
 
+## 🛣️ Next Work / Roadmap
+
+This project is an ongoing learning effort. The following steps outline planned extensions to evolve the model from a completion-based SLM into a more complete language system.
+
+### 1️⃣ Model Evaluation & Metrics
+- Implement **perplexity** evaluation on a held-out validation set
+- Evaluate conversational quality using **BLEU / ROUGE** on PersonaChat-style responses
+- Add lightweight **human evaluation** for coherence and relevance
+
+### 2️⃣ Decoding & Inference Improvements
+- Enforce strict reply boundaries (stop generation on `<user>` or `<eos>`)
+- Tune sampling strategies (temperature, top-k)
+- Add repetition and length penalties to reduce rambling
+
+### 3️⃣ Retrieval-Augmented Generation (RAG)
+- Integrate a lightweight retrieval pipeline using:
+  - Sentence embeddings
+  - FAISS for similarity search
+- Ground responses using external context without retraining the model
+- Evaluate factual consistency before and after retrieval
+
+### 4️⃣ Instruction-Style Fine-Tuning
+- Introduce instruction–response examples to improve command following
+- Convert the model from pure completion behavior to instruction-aware generation
+- Measure improvements using controlled prompts
+
+### 5️⃣ Deployment & Scaling (In Progress)
+- ✅ **Streamlit app deployed on Streamlit Cloud**
+- Improve startup time and inference latency
+- Add caching and resource-aware optimizations
+- Optional: expose a minimal inference API (FastAPI)
+
+### 6️⃣ Benchmarking & Analysis
+- Compare performance against small pretrained baselines (e.g., GPT-2 small)
+- Analyze trade-offs between model size, quality, and training time
+
+The focus remains on **evaluation, system design, and real-world usability**, rather than scaling model size.
+
+
+---
+
 ## 📄 License
 
 MIT License.
+
