@@ -187,6 +187,61 @@
 @media(max-width:760px){
   .creator-credit{top:6px;right:8px;font-size:9px;padding:5px 8px}
 }
+
+/* Mobile fix: keep the 3D architecture visible above the explanation panel */
+@media (max-width:760px){
+  html,body{overflow-x:hidden}
+  .stage{
+    display:flex!important;
+    flex-direction:column!important;
+    height:auto!important;
+    min-height:0!important;
+  }
+  .viewer-col{
+    position:relative!important;
+    order:1!important;
+    width:100%!important;
+    height:68vh!important;
+    min-height:480px!important;
+    max-height:720px!important;
+    overflow:hidden!important;
+    flex:none!important;
+  }
+  .viewer-col canvas{
+    display:block!important;
+    width:100%!important;
+    height:100%!important;
+  }
+  .detail-panel{
+    order:2!important;
+    position:relative!important;
+    width:100%!important;
+    min-height:420px!important;
+    max-height:none!important;
+  }
+  .block-inspector{
+    position:absolute!important;
+    left:8px!important;
+    right:8px!important;
+    top:auto!important;
+    bottom:10px!important;
+    width:auto!important;
+    max-height:46vh!important;
+    margin:0!important;
+    z-index:20!important;
+  }
+  .block-inspector .mini3d{height:190px!important}
+  .progress-shell{
+    position:absolute!important;
+    left:8px!important;
+    right:8px!important;
+    bottom:8px!important;
+    z-index:8!important;
+  }
+}
+@media (max-width:480px){
+  .viewer-col{height:62vh!important;min-height:430px!important}
+}
 </style>
 
 <style id="enhanced-interactions">
