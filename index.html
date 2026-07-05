@@ -1,0 +1,1770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Transformer — 3D architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --bg:#070A12; --bg2:#111827;
+    --panel:rgba(13,20,33,0.86); --panel-alt:#172033; --panel-raised:#21304A;
+    --ink:#F4F7FB; --muted:#9CA9C8; --dim:#64708E;
+    --teal:#4DEBD6; --teal-glow:rgba(77,235,214,0.34);
+    --amber:#FFCC66; --amber-glow:rgba(255,204,102,0.28);
+    --cross:#FF7A9A; --cross-glow:rgba(255,122,154,0.30);
+    --violet:#9B8CFF; --green:#9BFF8A;
+    --line:rgba(244,247,251,0.10); --line-strong:rgba(244,247,251,0.22);
+    --radius:8px; --radius-sm:5px;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:
+      radial-gradient(ellipse 52% 42% at 18% 0%, rgba(77,235,214,0.20) 0%, transparent 64%),
+      radial-gradient(ellipse 52% 44% at 76% 10%, rgba(255,122,154,0.18) 0%, transparent 62%),
+      radial-gradient(ellipse 70% 70% at 48% 110%, rgba(155,140,255,0.16) 0%, transparent 58%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    color:var(--ink); font-family:'Inter',sans-serif; overflow:hidden; }
+  h1,h2,h3{ font-family:'Space Grotesk',sans-serif; font-weight:600; margin:0; }
+  .mono{ font-family:'IBM Plex Mono',monospace; }
+  ::-webkit-scrollbar{ width:8px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-thumb{ background:var(--panel-raised); border-radius:8px; }
+  ::-webkit-scrollbar-thumb:hover{ background:var(--teal); }
+
+  header.top{
+    padding:18px 26px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+    background:linear-gradient(180deg, rgba(8,12,22,0.94), rgba(13,20,33,0.62));
+    backdrop-filter:blur(6px);
+    position:relative; z-index:5;
+  }
+  header.top::after{
+    content:''; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+    background:linear-gradient(90deg, transparent, var(--teal-glow) 25%, rgba(155,140,255,.34) 50%, var(--cross-glow) 75%, transparent);
+  }
+  .brandwrap{ display:flex; align-items:center; gap:10px; }
+  .pulse{ width:8px; height:8px; border-radius:50%; background:var(--teal); box-shadow:0 0 0 0 var(--teal-glow); animation:pulse 2.4s infinite; flex:0 0 auto; }
+  @keyframes pulse{ 0%{ box-shadow:0 0 0 0 var(--teal-glow);} 70%{ box-shadow:0 0 0 8px rgba(94,234,212,0);} 100%{ box-shadow:0 0 0 0 rgba(94,234,212,0);} }
+  header.top .eyebrow{ font-family:'IBM Plex Mono',monospace; color:var(--teal); font-size:10.5px; letter-spacing:0.12em; text-transform:uppercase; display:block; margin-bottom:3px; }
+  header.top h1{ font-size:18px; white-space:nowrap; letter-spacing:-0.01em; }
+
+  .control-row{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+  input[type="text"]{
+    background:var(--panel-alt); border:1px solid var(--line-strong); color:var(--ink);
+    padding:9px 14px; border-radius:var(--radius-sm); font-family:'IBM Plex Mono',monospace;
+    font-size:13px; min-width:220px; transition:border-color .15s, box-shadow .15s;
+  }
+  input[type="text"]:focus{ outline:none; border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-glow); }
+  button{
+    background:linear-gradient(180deg, var(--panel-raised), #151E31);
+    border:1px solid var(--line-strong); color:var(--ink); padding:9px 18px; border-radius:var(--radius-sm);
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:.15s;
+  }
+  button:hover{ border-color:var(--teal); color:var(--teal); box-shadow:0 0 16px -4px var(--teal-glow); transform:translateY(-1px); }
+  button:active{ transform:translateY(0); }
+  button:focus-visible, input:focus-visible{ outline:2px solid var(--teal); outline-offset:2px; }
+  label.small{ font-size:11.5px; color:var(--muted); font-family:'IBM Plex Mono',monospace; }
+  input[type="range"]{ -webkit-appearance:none; appearance:none; width:110px; height:3px; background:var(--line-strong); border-radius:3px; outline:none; }
+  input[type="range"]::-webkit-slider-thumb{ -webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:var(--teal); cursor:pointer; border:2px solid var(--bg); box-shadow:0 0 8px var(--teal-glow); }
+  input[type="range"]::-moz-range-thumb{ width:13px; height:13px; border-radius:50%; background:var(--teal); cursor:pointer; border:2px solid var(--bg); }
+  .readout{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--amber); }
+  .switch{ position:relative; width:36px; height:19px; display:inline-block; cursor:pointer; }
+  .switch input{ display:none; }
+  .switch .track{ position:absolute; inset:0; background:var(--panel-alt); border:1px solid var(--line-strong); border-radius:20px; transition:.15s; }
+  .switch .thumb{ position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:var(--muted); transition:.15s; }
+  .switch input:checked + .track{ background:var(--teal-glow); border-color:var(--teal); }
+  .switch input:checked + .track .thumb{ transform:translateX(17px); background:var(--teal); box-shadow:0 0 6px var(--teal-glow); }
+
+  .stage{ display:flex; height:calc(100vh - 68px); }
+  .viewer-col{ flex:1; min-width:0; display:flex; flex-direction:column; position:relative; }
+  .hint-bar{
+    padding:9px 22px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim);
+    display:flex; gap:18px; align-items:center; flex-wrap:wrap; position:relative; z-index:4;
+  }
+  .hint-bar .legend{ display:flex; gap:16px; margin-left:auto; flex-wrap:wrap; }
+  .hint-bar .sw{ width:9px; height:9px; display:inline-block; border-radius:2.5px; margin-right:5px; vertical-align:-1px; box-shadow:0 0 6px currentColor; }
+  #canvasWrap{ flex:1; position:relative; cursor:grab; touch-action:none; }
+  #canvasWrap::before{
+    content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+    background:
+      linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size:42px 42px; mask-image:radial-gradient(ellipse at center, black 22%, transparent 78%);
+  }
+  #canvasWrap::after{
+    content:''; position:absolute; inset:0; z-index:2; pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 48%, rgba(7,10,18,0.48) 100%);
+  }
+  #canvasWrap.dragging{ cursor:grabbing; }
+  #canvasWrap canvas{ display:block; width:100%; height:100%; position:relative; z-index:0; }
+
+  aside.panel{
+    width:410px; flex:0 0 auto; border-left:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(16,24,39,0.92), rgba(10,16,29,0.88)); backdrop-filter:blur(14px);
+    overflow-y:auto; padding:28px; position:relative; z-index:6;
+    box-shadow:-24px 0 48px -24px rgba(0,0,0,0.5);
+  }
+  @media (max-width: 980px){
+    .stage{ flex-direction:column; height:auto; }
+    #canvasWrap{ height:52vh; }
+    aside.panel{ width:100%; border-left:none; border-top:1px solid var(--line); max-height:56vh; }
+  }
+  .panel-badge{
+    display:inline-flex; align-items:center; gap:6px; font-family:'IBM Plex Mono',monospace; font-size:10px;
+    letter-spacing:0.09em; text-transform:uppercase; padding:5px 11px; border-radius:20px;
+    border:1px solid var(--line-strong); color:var(--muted); margin-bottom:14px;
+  }
+  .panel-badge .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 6px currentColor; }
+  .panel-badge.enc{ color:var(--teal); border-color:rgba(94,234,212,0.4); background:rgba(94,234,212,0.06); }
+  .panel-badge.dec{ color:var(--cross); border-color:rgba(240,145,106,0.4); background:rgba(240,145,106,0.06); }
+  .panel-badge.shared{ color:var(--amber); border-color:rgba(242,166,90,0.4); background:rgba(242,166,90,0.06); }
+  .panel h2{ font-size:23px; margin-bottom:4px; letter-spacing:-0.01em; }
+  .panel .explain{ color:var(--muted); font-size:13.5px; margin-top:12px; line-height:1.65; }
+  .formula{
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; background:var(--panel-alt);
+    border:1px solid var(--line); padding:12px 14px; border-radius:var(--radius-sm); color:var(--teal);
+    margin:16px 0; overflow-x:auto; white-space:nowrap;
+  }
+  .panel-section-title{ font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); margin:20px 0 10px; }
+  .placeholder{ color:var(--dim); font-size:13.5px; line-height:1.75; margin-top:8px; }
+  #panelBody, #infoPanel > *{ animation: fadeUp .32s ease both; }
+  @keyframes fadeUp{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:translateY(0);} }
+
+  .token-row{ display:flex; gap:6px; flex-wrap:wrap; margin:10px 0; }
+  .token-chip{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; padding:6px 11px; border:1px solid var(--line-strong);
+    border-radius:20px; background:var(--panel-alt); color:var(--ink); cursor:pointer; transition:.15s;
+  }
+  .token-chip:hover{ border-color:var(--teal); }
+  .token-chip.active{ border-color:var(--teal); color:#07211c; background:var(--teal); box-shadow:0 0 14px -2px var(--teal-glow); font-weight:600; }
+
+  .vecbar-row{ display:flex; align-items:center; gap:7px; margin:3px 0; }
+  .vecbar-label{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--dim); width:26px; flex:0 0 auto; text-align:right; }
+  .vecbar-track{ flex:1; height:11px; background:var(--panel-alt); border-radius:3px; position:relative; overflow:hidden; }
+  .vecbar-fill{ position:absolute; top:0; bottom:0; background:linear-gradient(90deg, var(--teal), #8FF5E4); border-radius:3px; transition:width .15s; }
+  .vecbar-fill.neg{ background:linear-gradient(270deg, var(--amber), #FFC98A); }
+  .vecbar-val{ width:40px; text-align:right; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted); flex:0 0 auto; }
+
+  table.heat{ border-collapse:separate; border-spacing:2px; margin-top:6px; font-size:10.5px; }
+  table.heat th{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--dim); font-weight:400; padding:3px 4px; }
+  table.heat td{ width:36px; height:25px; text-align:center; font-family:'IBM Plex Mono',monospace; font-size:9.5px; border-radius:4px; color:var(--ink); transition:transform .1s; }
+  table.heat td.rowlabel{ width:auto; text-align:right; padding-right:6px; color:var(--dim); background:transparent !important; }
+
+  .kv{ display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; }
+  .kv .item{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted); }
+  .kv .item b{ color:var(--ink); }
+  .note{ font-size:12.5px; color:var(--muted); border-left:2px solid var(--line-strong); padding-left:12px; margin-top:14px; line-height:1.6; }
+  .note strong{ color:var(--ink); }
+
+
+
+/* Non-blocking operation inspector */
+.block-inspector{transition:width .25s ease,transform .25s ease,opacity .25s ease}
+.block-inspector.compact{width:250px!important}
+.block-inspector.compact .mini3d{height:190px!important}
+.block-inspector.compact .math-card,.block-inspector.compact .math-note{display:none}
+.inspector-compact-btn{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:var(--text);border-radius:9px;min-width:32px;height:32px;cursor:pointer}
+@media(max-width:1100px){.block-inspector{width:min(350px,calc(100% - 24px))!important;left:12px}}
+@media(max-width:760px){.block-inspector{left:8px!important;right:8px!important;top:auto!important;bottom:12px!important;width:auto!important;max-height:48vh!important}.block-inspector .mini3d{height:210px!important}}
+
+.creator-credit{
+  position:fixed;
+  top:10px;
+  right:14px;
+  z-index:50;
+  font:600 11px 'IBM Plex Mono',monospace;
+  letter-spacing:.03em;
+  color:rgba(244,247,251,.72);
+  background:rgba(8,12,22,.58);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:999px;
+  padding:6px 10px;
+  backdrop-filter:blur(10px);
+  pointer-events:none;
+}
+@media(max-width:760px){
+  .creator-credit{top:6px;right:8px;font-size:9px;padding:5px 8px}
+}
+</style>
+
+<style id="enhanced-interactions">
+  .tour-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .icon-btn{min-width:38px;padding:9px 11px}
+  .accent-btn{background:linear-gradient(135deg,rgba(94,234,212,.22),rgba(94,234,212,.08));border-color:rgba(94,234,212,.55)}
+  .accent-btn:hover{background:rgba(94,234,212,.16)}
+  .status-pill{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);border:1px solid var(--line-strong);background:rgba(10,15,28,.55);padding:6px 9px;border-radius:999px}
+  .progress-shell{position:absolute;left:18px;right:18px;bottom:14px;z-index:7;pointer-events:none}
+  .progress-card{pointer-events:auto;max-width:760px;margin:auto;padding:10px 12px;border:1px solid var(--line-strong);border-radius:8px;background:rgba(8,12,22,.78);backdrop-filter:blur(14px);box-shadow:0 18px 42px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.05)}
+  .progress-head{display:flex;justify-content:space-between;gap:12px;font:10px 'IBM Plex Mono',monospace;color:var(--muted);margin-bottom:7px}
+  .progress-track{height:4px;background:var(--panel-raised);border-radius:99px;overflow:hidden}
+  .progress-fill{height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--green),var(--amber),var(--cross),var(--violet));transition:width .35s ease;box-shadow:0 0 16px var(--teal-glow)}
+  .floating-tip{position:absolute;z-index:8;pointer-events:none;opacity:0;transform:translate(-50%,-120%) translateY(5px);transition:.15s;padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;background:rgba(10,15,28,.92);backdrop-filter:blur(8px);font:11px 'IBM Plex Mono',monospace;color:var(--ink);white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .floating-tip.show{opacity:1;transform:translate(-50%,-120%) translateY(0)}
+  .toast{position:fixed;left:50%;bottom:28px;z-index:20;transform:translate(-50%,20px);opacity:0;padding:10px 14px;border:1px solid rgba(94,234,212,.4);border-radius:8px;background:rgba(10,15,28,.94);color:var(--ink);font:12px 'IBM Plex Mono',monospace;transition:.22s;pointer-events:none}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .kbd{display:inline-flex;min-width:22px;justify-content:center;padding:2px 6px;border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:4px;background:var(--panel-alt);font:10px 'IBM Plex Mono',monospace;color:var(--muted)}
+  .panel-nav{display:flex;gap:8px;margin:18px 0 4px}
+  .panel-nav button{flex:1;padding:8px 10px;font-size:11px}
+  .spotlight{animation:spotlightPulse 1.25s ease-in-out infinite}
+  .block-inspector{
+    position:absolute;left:18px;top:64px;z-index:6;width:min(440px,calc(100% - 36px));max-height:calc(100% - 120px);
+    display:none;flex-direction:column;gap:12px;padding:14px;border:1px solid rgba(77,235,214,.46);
+    border-radius:8px;background:rgba(8,12,22,.86);backdrop-filter:blur(14px);
+    box-shadow:0 22px 54px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.06);overflow:auto
+  }
+  .block-inspector.open{display:flex}
+  .inspector-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .inspector-kicker{font:10px 'IBM Plex Mono',monospace;color:var(--teal);letter-spacing:.11em;text-transform:uppercase;margin-bottom:3px}
+  .inspector-title{font:700 18px 'Space Grotesk',sans-serif;color:var(--ink);line-height:1.1}
+  .inspector-close{width:30px;height:30px;min-width:30px;padding:0;border-radius:6px}
+  .mini3d{height:300px;border:1px solid var(--line-strong);border-radius:8px;background:radial-gradient(circle at 50% 20%,rgba(77,235,214,.12),rgba(8,12,22,.12) 48%,rgba(8,12,22,.62));overflow:hidden}
+  .mini3d canvas{display:block;width:100%;height:100%}
+  .math-grid{display:grid;grid-template-columns:1fr;gap:8px}
+  .math-row{border-left:2px solid var(--teal);padding:7px 9px;background:rgba(255,255,255,.035);border-radius:5px}
+  .math-label{font:10px 'IBM Plex Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+  .math-value{font:12px 'IBM Plex Mono',monospace;color:var(--ink);line-height:1.45;word-break:break-word}
+  .math-value b{color:var(--amber);font-weight:700}
+  .math-note{font-size:12px;color:var(--muted);line-height:1.55}
+  @keyframes spotlightPulse{0%,100%{opacity:.65}50%{opacity:1}}
+  @media(max-width:720px){
+    header.top{padding:12px}.control-row{width:100%}input[type="text"]{min-width:0;flex:1}
+    .progress-shell{left:8px;right:8px;bottom:8px}.hint-bar .legend{display:none}
+    .block-inspector{position:relative;left:auto;top:auto;width:auto;max-height:none;margin:8px;order:2}
+  }
+</style>
+
+</head>
+<body>
+<div class="creator-credit">Created by Aditya Naranje</div>
+
+
+<header class="top">
+  <div class="brandwrap">
+    <span class="pulse"></span>
+    <div>
+      <span class="eyebrow">Interactive 3D schematic</span>
+      <h1>The Transformer</h1>
+    </div>
+  </div>
+  <div class="control-row" style="margin-left:8px;">
+    <span class="status-pill">Task: Summarization</span>
+    <input type="text" id="sentenceInput" value="transformers process words using attention mechanisms" maxlength="100" aria-label="Encoder source input" placeholder="Source text — up to 6 words">
+    <span class="status-pill" id="wordCount">6 / 6 source words</span>
+    <input type="text" id="targetInput" value="transformers use attention" maxlength="100" aria-label="Decoder summary input" placeholder="Summary — up to 6 words">
+    <span class="status-pill" id="targetWordCount">3 / 6 summary words</span>
+    <button id="recomputeBtn">Run summarization</button>
+  </div>
+  <div class="control-row" style="margin-left:auto;">
+    <label class="small">stack depth</label>
+    <input type="range" id="depthSlider" min="1" max="6" step="1" value="6">
+    <span class="readout" id="depthVal">×6</span>
+  </div>
+
+  <div class="tour-controls">
+    <button id="tourBtn" class="accent-btn">▶ Step-by-Step Tour</button>
+    <button id="resetViewBtn" class="icon-btn" title="Reset camera">↺</button>
+    <span class="status-pill" id="tourStatus">explore mode</span>
+  </div>
+
+</header>
+
+<div class="stage">
+  <div class="viewer-col">
+
+    <div class="floating-tip" id="hoverTip"></div>
+    <section class="block-inspector" id="blockInspector" aria-live="polite">
+      <div class="inspector-head">
+        <div>
+          <div class="inspector-kicker" id="inspectorKicker">Selected block</div>
+          <div class="inspector-title" id="inspectorTitle">Block structure</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="inspector-compact-btn" id="inspectorCompact" title="Compact / expand inspector">↔</button>
+          <button class="inspector-close" id="inspectorClose" title="Close inspector">×</button>
+        </div>
+      </div>
+      <div class="mini3d" id="mini3d"></div>
+      <div class="math-note" style="margin-top:-4px">Scroll to zoom · drag to rotate · Shift+drag to pan · double-click to reset</div>
+      <div class="math-grid" id="inspectorMath"></div>
+      <div class="math-note" id="inspectorNote"></div>
+    </section>
+    <div class="progress-shell">
+      <div class="progress-card">
+        <div class="progress-head"><span id="progressLabel">Pipeline exploration</span><span id="progressCount">0 / 16 inspected</span></div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+    </div>
+
+    <div class="hint-bar">
+      <span>drag to rotate · scroll to zoom · click a block · <span class="kbd">←</span>/<span class="kbd">→</span> navigate · <span class="kbd">Space</span> flow</span>
+      <div class="legend">
+        <span><span class="sw" style="background:#4F6BFF;color:#4F6BFF"></span>embeddings</span>
+        <span><span class="sw" style="background:#FFB11F;color:#FFB11F"></span>positional encoding</span>
+        <span><span class="sw" style="background:#00E5C7;color:#00E5C7"></span>attention</span>
+        <span><span class="sw" style="background:#FF3E72;color:#FF3E72"></span>cross-attention</span>
+        <span><span class="sw" style="background:#7D8BFF;color:#7D8BFF"></span>add &amp; norm / linear</span>
+        <span><span class="sw" style="background:#54F06D;color:#54F06D"></span>feed forward</span>
+      </div>
+    </div>
+    <div id="canvasWrap"></div>
+  </div>
+
+  <aside class="panel" id="infoPanel">
+    <div class="panel-badge"><span class="dot"></span>Getting started</div>
+    <h2>Click any block</h2>
+    <p class="explain">The two towers mirror the original paper: <strong style="color:var(--teal)">encoder on the left</strong>, <strong style="color:var(--cross)">decoder on the right</strong>, connected in the middle where the encoder hands its output to the decoder's cross-attention. Everything is built from the sentence above, run through a small (but real) transformer — 8-dimensional vectors instead of hundreds, so every number stays visible.</p>
+    <p class="placeholder">Click a block — embedding, an attention layer, add &amp; norm, anything — and this panel shows exactly what it computes for your sentence, in plain language and in the actual numbers.</p>
+  </aside>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ======================= MATH CORE ======================= */
+const D = 8, FFN_HIDDEN = 16;
+const VOCAB = ["the","cat","sat","down","mat","dog","ran","fast","on","home"];
+
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))|0; } return Math.abs(h); }
+function randMat(seed, rows, cols, scale){
+  scale = scale===undefined?0.6:scale;
+  const rng = mulberry32(seed); const m=[];
+  for(let i=0;i<rows;i++){ const row=[]; for(let j=0;j<cols;j++){ row.push((rng()*2-1)*scale); } m.push(row); }
+  return m;
+}
+function randVec(seed,n,scale){ scale=scale===undefined?0.3:scale; const rng=mulberry32(seed); const v=[]; for(let i=0;i<n;i++) v.push((rng()*2-1)*scale); return v; }
+function embed(token){ const rng = mulberry32(hashStr(token)+9001); const v=[]; for(let i=0;i<D;i++) v.push(rng()*2-1); return v; }
+function posEncode(pos,d){ const v=[]; for(let i=0;i<d;i++){ const k=Math.floor(i/2); const denom=Math.pow(10000,(2*k)/d); v.push(i%2===0?Math.sin(pos/denom):Math.cos(pos/denom)); } return v; }
+function addVec(a,b){ return a.map((x,i)=>x+b[i]); }
+function matVecMul(vec,mat){ const out=new Array(mat[0].length).fill(0); for(let i=0;i<vec.length;i++){ const row=mat[i]; for(let j=0;j<row.length;j++){ out[j]+=vec[i]*row[j]; } } return out; }
+function addBias(v,b){ return v.map((x,i)=>x+b[i]); }
+function dot(a,b){ let s=0; for(let i=0;i<a.length;i++) s+=a[i]*b[i]; return s; }
+function softmax(arr,temp){
+  temp=temp||1;
+  const scaled = arr.map(x=> x===-Infinity?-Infinity:x/temp);
+  const finite = scaled.filter(x=>isFinite(x));
+  const m = finite.length?Math.max(...finite):0;
+  const ex = scaled.map(x=> isFinite(x)?Math.exp(x-m):0);
+  const s = ex.reduce((a,b)=>a+b,0)||1;
+  return ex.map(x=>x/s);
+}
+function relu(v){ return v.map(x=>Math.max(0,x)); }
+function layerNorm(vec){
+  const mean = vec.reduce((a,b)=>a+b,0)/vec.length;
+  const variance = vec.reduce((a,b)=>a+(b-mean)*(b-mean),0)/vec.length;
+  const std = Math.sqrt(variance+1e-6);
+  return { out: vec.map(x=>(x-mean)/std), mean, variance };
+}
+function attention(Xq,Xk,Xv,Wq,Wk,Wv,temp,mask){
+  const Q=Xq.map(x=>matVecMul(x,Wq)), K=Xk.map(x=>matVecMul(x,Wk)), V=Xv.map(x=>matVecMul(x,Wv));
+  const dk=Wq[0].length;
+  const scores=Q.map(q=>K.map(k=>dot(q,k)/Math.sqrt(dk)));
+  const masked = mask ? scores.map((row,i)=>row.map((v,j)=>mask(i,j)?v:-Infinity)) : scores;
+  const weights = masked.map(row=>softmax(row,temp));
+  const out = weights.map(w=>{ const o=new Array(V[0].length).fill(0); w.forEach((wt,j)=>{ if(wt>0) V[j].forEach((vv,d)=>o[d]+=wt*vv); }); return o; });
+  return {Q,K,V,scores,weights,out};
+}
+
+const W = {
+  Wq: randMat(101,D,D), Wk: randMat(102,D,D), Wv: randMat(103,D,D),
+  Wq2: randMat(201,D,D), Wk2: randMat(202,D,D), Wv2: randMat(203,D,D),
+  WqC: randMat(301,D,D), WkC: randMat(302,D,D), WvC: randMat(303,D,D),
+  W1: randMat(401,D,FFN_HIDDEN,0.5), b1: randVec(402,FFN_HIDDEN,0.2),
+  W2: randMat(403,FFN_HIDDEN,D,0.4), b2: randVec(404,D,0.2),
+  Wvocab: randMat(501,D,VOCAB.length,0.5)
+};
+function ffnForward(x){ const h=relu(addBias(matVecMul(x,W.W1),W.b1)); const o=addBias(matVecMul(h,W.W2),W.b2); return {h,o}; }
+
+function forwardPass(X){
+  const attnEnc = attention(X,X,X,W.Wq,W.Wk,W.Wv,1);
+  const addnorm1 = X.map((x,i)=>layerNorm(addVec(x,attnEnc.out[i])).out);
+  const ffnEncOut = addnorm1.map(x=>ffnForward(x).o);
+  const addnorm2 = addnorm1.map((x,i)=>layerNorm(addVec(x,ffnEncOut[i])).out);
+  const encoderMemory = addnorm2;
+
+  const maskFn = (i,j)=>j<=i;
+  const attnDecSelf = attention(X,X,X,W.Wq2,W.Wk2,W.Wv2,1,maskFn);
+  const addnorm1d = X.map((x,i)=>layerNorm(addVec(x,attnDecSelf.out[i])).out);
+  const attnCross = attention(addnorm1d, encoderMemory, encoderMemory, W.WqC, W.WkC, W.WvC, 1);
+  const addnorm2d = addnorm1d.map((x,i)=>layerNorm(addVec(x,attnCross.out[i])).out);
+  const ffnDecOut = addnorm2d.map(x=>ffnForward(x).o);
+  const addnorm3d = addnorm2d.map((x,i)=>layerNorm(addVec(x,ffnDecOut[i])).out);
+
+  return { attnEnc, addnorm1, ffnEncOut, addnorm2, encoderMemory, attnDecSelf, addnorm1d, attnCross, addnorm2d, ffnDecOut, addnorm3d };
+}
+
+/* ======================= DOM VIZ HELPERS ======================= */
+function el(tag,cls,html){ const e=document.createElement(tag); if(cls) e.className=cls; if(html!==undefined) e.innerHTML=html; return e; }
+function colorFor(w,hue){ const a=Math.max(0,Math.min(1,w)); return hue==='amber' ? `rgba(242,166,90,${a})` : hue==='cross' ? `rgba(240,145,106,${a})` : `rgba(94,234,212,${a})`; }
+
+function vecBars(container, vec, opts){
+  opts=opts||{}; container.innerHTML='';
+  const max = Math.max(0.6, ...vec.map(v=>Math.abs(v)));
+  const labels = opts.labels;
+  vec.forEach((v,i)=>{
+    const row=el('div','vecbar-row'); row.appendChild(el('div','vecbar-label', labels ? labels[i] : 'd'+i));
+    const track=el('div','vecbar-track'); const fill=el('div','vecbar-fill'+(v<0?' neg':''));
+    const pct=Math.min(100,Math.abs(v)/max*50); fill.style.width=pct+'%';
+    if(v>=0) fill.style.left='50%'; else fill.style.right='50%';
+    track.appendChild(fill); row.appendChild(track); row.appendChild(el('div','vecbar-val',v.toFixed(2)));
+    if(opts.editable){
+      row.style.cursor='ns-resize';
+      let dragging=false,startY=0,startV=v;
+      row.addEventListener('pointerdown', e=>{ dragging=true; startY=e.clientY; startV=vec[i]; row.setPointerCapture(e.pointerId); });
+      row.addEventListener('pointermove', e=>{ if(!dragging) return; const dy=startY-e.clientY; vec[i]=Math.max(-2,Math.min(2,startV+dy*0.02)); opts.onChange&&opts.onChange(); });
+      row.addEventListener('pointerup', ()=>{ dragging=false; });
+    }
+    container.appendChild(row);
+  });
+}
+function heatTable(container, matrix, rowLabels, colLabels, opts){
+  opts=opts||{}; container.innerHTML='';
+  const table=el('table','heat'); const head=el('tr'); head.appendChild(el('th',''));
+  colLabels.forEach(c=>head.appendChild(el('th','',c))); table.appendChild(head);
+  matrix.forEach((row,i)=>{
+    const tr=el('tr'); tr.appendChild(el('td','rowlabel',rowLabels[i]));
+    row.forEach((v,j)=>{
+      const td=el('td','', v===null?'·':v.toFixed(2));
+      if(v!==null){ td.style.background=colorFor(v,opts.hue); if(v>0.5) td.style.color='#0A0F1C'; }
+      else { td.style.background='var(--panel-alt)'; td.style.color='var(--dim)'; }
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  });
+  container.appendChild(table);
+}
+function tokenChips(container, tokens, activeIdx, onClick){
+  container.innerHTML='';
+  tokens.forEach((t,i)=>{
+    const chip=el('span','token-chip'+(i===activeIdx?' active':''), t);
+    chip.addEventListener('click', ()=>onClick(i));
+    container.appendChild(chip);
+  });
+}
+
+/* ======================= APP STATE ======================= */
+const state = {
+  targetTokens: ['transformers','use','attention'], tokens:[], X:[], fp:null, sel:{} };
+function tokenize(text){ return text.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0,6); }
+function enforceSixWordLimit(inputId='sentenceInput', countId='wordCount', kind='source'){
+  const input = document.getElementById(inputId);
+  let words = input.value.trim().split(/\s+/).filter(Boolean);
+  if(words.length > 6){
+    words = words.slice(0,6);
+    input.value = words.join(' ');
+    showToast(`${kind==='summary'?'Summary':'Source'} is limited to 6 words`);
+  }
+  const count = document.getElementById(countId);
+  if(count) count.textContent = `${words.length} / 6 ${kind==='summary'?'summary':'source'} words`;
+  return words;
+}
+function recompute(){
+  enforceSixWordLimit('sentenceInput','wordCount','source');
+  enforceSixWordLimit('targetInput','targetWordCount','summary');
+  state.tokens = tokenize(document.getElementById('sentenceInput').value);
+  state.targetTokens = tokenize(document.getElementById('targetInput').value);
+  // Encoder uses source tokens. Decoder uses shifted-right summary tokens conceptually:
+  // <BOS>, y1, ..., y(t-1). The visualization displays the human-readable summary tokens.
+
+  if(state.tokens.length===0) state.tokens=['the','cat'];
+  const embeddings = state.tokens.map(embed);
+  const positions = state.tokens.map((_,i)=>posEncode(i,D));
+  state.X = state.tokens.map((_,i)=>addVec(embeddings[i],positions[i]));
+  state.embeddings = embeddings; state.positions = positions;
+  state.fp = forwardPass(state.X);
+  state.sel = {};
+  updateTokenPlates();
+  if(activeKey){
+    openPanel(activeKey);
+    // Rebuild the left 3D operation with the latest tokens and computed values.
+    if(typeof rebuildMini3D === 'function') rebuildMini3D(activeKey);
+    if(typeof renderInspectorMath === 'function') renderInspectorMath(activeKey);
+  }
+}
+
+/* ======================= COMPONENT PANELS ======================= */
+function getSel(key, fallback){ if(state.sel[key]===undefined) state.sel[key]=fallback||0; return Math.min(state.sel[key], state.tokens.length-1); }
+
+const ADDNORM_MAP = {
+  addnorm1_enc: { x:i=>state.X[i], sub:i=>state.fp.attnEnc.out[i], label:'x = model input · Sublayer(x) = self-attention output' },
+  addnorm2_enc: { x:i=>state.fp.addnorm1[i], sub:i=>state.fp.ffnEncOut[i], label:'x = previous add & norm · Sublayer(x) = feed-forward output' },
+  addnorm1_dec: { x:i=>state.X[i], sub:i=>state.fp.attnDecSelf.out[i], label:'x = decoder input · Sublayer(x) = masked self-attention output' },
+  addnorm2_dec: { x:i=>state.fp.addnorm1d[i], sub:i=>state.fp.attnCross.out[i], label:'x = previous add & norm · Sublayer(x) = cross-attention output' },
+  addnorm3_dec: { x:i=>state.fp.addnorm2d[i], sub:i=>state.fp.ffnDecOut[i], label:'x = previous add & norm · Sublayer(x) = feed-forward output' },
+};
+
+function renderAddNormPanel(body, key){
+  const map = ADDNORM_MAP[key];
+  const i = getSel(key,0);
+  body.appendChild(el('div','panel-section-title','Token'));
+  const picker=el('div'); body.appendChild(picker); tokenChips(picker, state.tokens, i, idx=>{ state.sel[key]=idx; openPanel(key); });
+
+  const row = el('div','control-row'); body.appendChild(row);
+  const sw = el('label','switch'); sw.innerHTML = `<input type="checkbox" id="resid_${key}" checked><span class="track"><span class="thumb"></span></span>`;
+  row.appendChild(sw); row.appendChild(el('label','small','keep residual connection'));
+
+  const vizWrap = el('div'); body.appendChild(vizWrap);
+  function draw(){
+    const residualOn = document.getElementById('resid_'+key).checked;
+    const x = map.x(i), sub = map.sub(i);
+    const combined = residualOn ? addVec(x,sub) : sub.slice();
+    const normed = layerNorm(combined);
+    vizWrap.innerHTML='';
+    vizWrap.appendChild(el('div','note', map.label));
+    vizWrap.appendChild(el('div','panel-section-title','Before norm'));
+    const b1=el('div'); vizWrap.appendChild(b1); vecBars(b1, combined);
+    vizWrap.appendChild(el('div','panel-section-title','After LayerNorm'));
+    const b2=el('div'); vizWrap.appendChild(b2); vecBars(b2, normed.out);
+    const kv = el('div','kv');
+    kv.innerHTML = `<div class="item">mean before: <b>${(combined.reduce((a,b)=>a+b,0)/combined.length).toFixed(3)}</b></div>
+      <div class="item">variance before: <b>${normed.variance.toFixed(3)}</b></div>
+      <div class="item">mean after: <b>≈0.000</b></div><div class="item">variance after: <b>≈1.000</b></div>`;
+    vizWrap.appendChild(kv);
+  }
+  document.getElementById('resid_'+key).addEventListener('change', draw);
+  draw();
+}
+
+function renderAttnPanel(body, key, weightsMatrix, hue, queryLabelFn){
+  const i = getSel(key,0);
+  body.appendChild(el('div','panel-section-title','Query token'));
+  const picker = el('div'); body.appendChild(picker);
+  tokenChips(picker, state.tokens, i, idx=>{ state.sel[key]=idx; openPanel(key); });
+  const labels = state.tokens.map((t,ix)=>ix+':'+t);
+  body.appendChild(el('div','panel-section-title','Attention weights'));
+  const tableWrap = el('div'); body.appendChild(tableWrap);
+  heatTable(tableWrap, weightsMatrix, labels, labels, {hue});
+  const row = weightsMatrix[i];
+  const top = row.map((v,j)=>[v,j]).sort((a,b)=>b[0]-a[0])[0];
+  body.appendChild(el('div','note', `${queryLabelFn(i)} puts its strongest weight (<strong>${(top[0]*100).toFixed(0)}%</strong>) on <strong>"${state.tokens[top[1]]}"</strong>.`));
+}
+
+function renderFFNPanel(body, sourceVecFn, sourceLabel){
+  if(state.sel.ffnInputKey !== activeKey){ state.sel.ffnInput = sourceVecFn().slice(); state.sel.ffnInputKey = activeKey; }
+  body.appendChild(el('div','note', `Starting from ${sourceLabel} — drag any bar to explore "what if this value were different?"`));
+  body.appendChild(el('div','panel-section-title','Input (8-d)'));
+  const inWrap = el('div'); body.appendChild(inWrap);
+  const hidWrap = el('div'); body.appendChild(el('div','panel-section-title','Hidden layer (16-d, post-ReLU)')); body.appendChild(hidWrap);
+  const outWrap = el('div'); body.appendChild(el('div','panel-section-title','Output (8-d)')); body.appendChild(outWrap);
+  function redraw(){
+    const {h,o} = ffnForward(state.sel.ffnInput);
+    vecBars(hidWrap, h); vecBars(outWrap, o);
+  }
+  vecBars(inWrap, state.sel.ffnInput, {editable:true, onChange:redraw});
+  redraw();
+}
+
+const COMPONENTS = {
+  input_embedding: {
+    title:'Input Embedding', group:'enc',
+    explain:'Each source token is looked up in a table and turned into a vector — a point in space that stands in for its meaning. In a real model this table is learned and has hundreds or thousands of dimensions; here it\'s fixed and shrunk to 8 so every value is visible.',
+    formula:'E[token] → vector ∈ ℝ⁸',
+    render(body){
+      const i = getSel('input_embedding',0);
+      body.appendChild(el('div','panel-section-title','Token'));
+      const p=el('div'); body.appendChild(p); tokenChips(p, state.tokens, i, idx=>{ state.sel.input_embedding=idx; openPanel('input_embedding'); });
+      body.appendChild(el('div','panel-section-title','Embedding vector'));
+      const v=el('div'); body.appendChild(v); vecBars(v, state.embeddings[i]);
+    }
+  },
+  pos_encoding_enc: {
+    title:'Positional Encoding', group:'enc',
+    explain:'Attention has no built-in sense of order — swap two tokens and the math doesn\'t notice. A fixed wave pattern is added to each embedding so position leaks into the vector: even dimensions use sine, odd dimensions use cosine, each at a different frequency.',
+    formula:'PE(pos,2i)=sin(pos/10000^(2i/d))   PE(pos,2i+1)=cos(pos/10000^(2i/d))',
+    render(body){
+      body.appendChild(el('div','panel-section-title','Position matrix (all tokens)'));
+      const h=el('div'); body.appendChild(h);
+      heatTable(h, state.positions, state.tokens.map((t,i)=>i+':'+t), Array.from({length:D},(_,i)=>'d'+i), {hue:'amber'});
+      const i = getSel('pos_encoding_enc',0);
+      body.appendChild(el('div','panel-section-title','Embedding + position'));
+      const p=el('div'); body.appendChild(p); tokenChips(p, state.tokens, i, idx=>{ state.sel.pos_encoding_enc=idx; openPanel('pos_encoding_enc'); });
+      const v=el('div'); body.appendChild(v); vecBars(v, state.X[i]);
+      body.appendChild(el('div','note','This summed vector is what actually flows into attention — not the raw embedding.'));
+    }
+  },
+  mha_enc: {
+    title:'Multi-Head Attention', group:'enc',
+    explain:'The encoder lets every token look at every other token in the sentence (including itself). Each token emits a query; every token exposes a key and a value. A token\'s new representation is a blend of everyone\'s values, weighted by how well its query matches each key.',
+    formula:'Attention(Q,K,V) = softmax( Q·Kᵀ/√d_k ) · V',
+    render(body){ renderAttnPanel(body,'mha_enc', state.fp.attnEnc.weights, 'teal', i=>`"${state.tokens[i]}"`); }
+  },
+  addnorm1_enc: { title:'Add & Norm', group:'enc',
+    explain:'The attention output is added back to its own input (a residual connection) and normalized to zero mean / unit variance. The residual keeps the original signal alive through deep stacks; the norm keeps activations stable.',
+    formula:'LayerNorm( x + Sublayer(x) )', render(body){ renderAddNormPanel(body,'addnorm1_enc'); } },
+  ffn_enc: {
+    title:'Feed Forward', group:'enc',
+    explain:'Independently for each token (no mixing across tokens here), the vector passes through two linear layers with a ReLU in between, expanding to a wider hidden size and projecting back down. This is where most of a transformer\'s parameters live.',
+    formula:'FFN(x) = ReLU(x·W₁+b₁)·W₂+b₂   (8 → 16 → 8)',
+    render(body){ const i=getSel('ffn_enc',0); body.appendChild(el('div','panel-section-title','Source token')); const p=el('div'); body.appendChild(p); tokenChips(p,state.tokens,i,idx=>{state.sel.ffn_enc=idx; state.sel.ffnInputKey=null; openPanel('ffn_enc');}); renderFFNPanel(body, ()=>state.fp.addnorm1[getSel('ffn_enc',0)], `"${state.tokens[i]}"'s vector after the first add & norm`); }
+  },
+  addnorm2_enc: { title:'Add & Norm', group:'enc',
+    explain:'Same idea, wrapping the feed-forward block. After this step the encoder has produced its final representation for this layer — in the full model this whole encoder layer repeats N times, each with its own weights.',
+    formula:'LayerNorm( x + Sublayer(x) )', render(body){ renderAddNormPanel(body,'addnorm2_enc'); } },
+
+  output_embedding: {
+    title:'Summary Token Embedding', group:'dec',
+    explain:'The decoder embeds its own input: the tokens generated so far, shifted right by one position (during training, the target sequence). To keep this demo self-contained, we reuse your sentence as a stand-in — in a real translation model this would be a different sequence in the target language.',
+    formula:'E[token] → vector ∈ ℝ⁸',
+    render(body){
+      const i = getSel('output_embedding',0);
+      body.appendChild(el('div','panel-section-title','Token'));
+      const p=el('div'); body.appendChild(p); tokenChips(p, state.tokens, i, idx=>{ state.sel.output_embedding=idx; openPanel('output_embedding'); });
+      body.appendChild(el('div','panel-section-title','Embedding vector'));
+      const v=el('div'); body.appendChild(v); vecBars(v, state.embeddings[i]);
+    }
+  },
+  pos_encoding_dec: {
+    title:'Positional Encoding', group:'dec',
+    explain:'The same sinusoidal position signal is added on the decoder side, so the decoder also knows the order of the tokens it has produced so far.',
+    formula:'PE(pos,2i)=sin(pos/10000^(2i/d))   PE(pos,2i+1)=cos(pos/10000^(2i/d))',
+    render(body){
+      const i = getSel('pos_encoding_dec',0);
+      body.appendChild(el('div','panel-section-title','Embedding + position'));
+      const p=el('div'); body.appendChild(p); tokenChips(p, state.tokens, i, idx=>{ state.sel.pos_encoding_dec=idx; openPanel('pos_encoding_dec'); });
+      const v=el('div'); body.appendChild(v); vecBars(v, state.X[i]);
+    }
+  },
+  mha_dec: {
+    title:'Masked Multi-Head Attention', group:'dec',
+    explain:'The decoder\'s self-attention works the same way, with one change: a causal mask forces each position to only attend to itself and earlier positions. This matters because the decoder generates text left-to-right and shouldn\'t "peek" at future words.',
+    formula:'scores[i][j] = −∞  for j > i,  then softmax as usual',
+    render(body){ renderAttnPanel(body,'mha_dec', state.fp.attnDecSelf.weights, 'cross', i=>`"${state.tokens[i]}"`); }
+  },
+  addnorm1_dec: { title:'Add & Norm', group:'dec',
+    explain:'Residual connection and normalization around the masked self-attention block, identical in mechanism to the encoder\'s add & norm.',
+    formula:'LayerNorm( x + Sublayer(x) )', render(body){ renderAddNormPanel(body,'addnorm1_dec'); } },
+  cross_attn: {
+    title:'Cross-Attention', group:'dec',
+    explain:'Here the decoder finally looks at the encoder. Queries come from the decoder\'s own (masked) self-attention output; keys and values come from the encoder\'s final output. This is how the decoder "reads" the source sentence while producing each output token.',
+    formula:'Attention(Q_decoder, K_encoder, V_encoder)',
+    render(body){ renderAttnPanel(body,'cross_attn', state.fp.attnCross.weights, 'amber', i=>`decoder position "${state.tokens[i]}"`); }
+  },
+  addnorm2_dec: { title:'Add & Norm', group:'dec',
+    explain:'Residual connection and normalization around cross-attention.',
+    formula:'LayerNorm( x + Sublayer(x) )', render(body){ renderAddNormPanel(body,'addnorm2_dec'); } },
+  ffn_dec: {
+    title:'Feed Forward', group:'dec',
+    explain:'The decoder\'s own position-wise feed-forward network — same shape as the encoder\'s, with independent weights in a real model.',
+    formula:'FFN(x) = ReLU(x·W₁+b₁)·W₂+b₂   (8 → 16 → 8)',
+    render(body){ const i=getSel('ffn_dec',0); body.appendChild(el('div','panel-section-title','Source token')); const p=el('div'); body.appendChild(p); tokenChips(p,state.tokens,i,idx=>{state.sel.ffn_dec=idx; state.sel.ffnInputKey=null; openPanel('ffn_dec');}); renderFFNPanel(body, ()=>state.fp.addnorm2d[getSel('ffn_dec',0)], `"${state.tokens[i]}"'s vector after cross-attention's add & norm`); }
+  },
+  addnorm3_dec: { title:'Add & Norm', group:'dec',
+    explain:'Final residual + normalization of the decoder layer. In the full model, this decoder layer also repeats N times before reaching the output projection.',
+    formula:'LayerNorm( x + Sublayer(x) )', render(body){ renderAddNormPanel(body,'addnorm3_dec'); } },
+
+  linear_proj: {
+    title:'Linear', group:'shared',
+    explain:'The decoder\'s final vector is projected through one more learned linear layer, producing one raw score — a "logit" — per word in the vocabulary. These scores can be any real number; they aren\'t probabilities yet.',
+    formula:'logits = x · W_vocab   (8 → 10 toy vocabulary)',
+    render(body){
+      const i = getSel('linear_proj',0);
+      body.appendChild(el('div','panel-section-title','Decoder position'));
+      const p=el('div'); body.appendChild(p); tokenChips(p, state.tokens, i, idx=>{ state.sel.linear_proj=idx; openPanel('linear_proj'); });
+      body.appendChild(el('div','panel-section-title','Raw logits (before softmax)'));
+      const v=el('div'); body.appendChild(v);
+      const scores = matVecMul(state.fp.addnorm3d[i], W.Wvocab);
+      vecBars(v, scores, {labels:VOCAB});
+      body.appendChild(el('div','note','Notice these can be negative and don\'t sum to anything meaningful yet — softmax fixes that next.'));
+    }
+  },
+  softmax: {
+    title:'Softmax', group:'shared',
+    explain:'Softmax turns the raw logits into a probability distribution: every value becomes positive and the whole set sums to 1. The model can then sample from this distribution — or just take the top pick — to choose the next token.',
+    formula:'softmax(z)ᵢ = exp(zᵢ) / Σⱼ exp(zⱼ)',
+    render(body){
+      const i = getSel('softmax',0);
+      body.appendChild(el('div','panel-section-title','Predicting after token'));
+      const p=el('div'); body.appendChild(p); tokenChips(p, state.tokens, i, idx=>{ state.sel.softmax=idx; openPanel('softmax'); });
+      const row = el('div','control-row'); body.appendChild(row);
+      row.appendChild(el('label','small','temperature'));
+      const slider = document.createElement('input'); slider.type='range'; slider.min=0.3; slider.max=3; slider.step=0.1; slider.value=1;
+      row.appendChild(slider);
+      const readout = el('span','readout','1.0×'); row.appendChild(readout);
+      body.appendChild(el('div','panel-section-title','Vocabulary distribution'));
+      const bars = el('div'); body.appendChild(bars);
+      function draw(){
+        const temp = parseFloat(slider.value); readout.textContent = temp.toFixed(1)+'×';
+        const scores = matVecMul(state.fp.addnorm3d[i], W.Wvocab);
+        const probs = softmax(scores, temp);
+        const order = probs.map((p,ix)=>[p,ix]).sort((a,b)=>b[0]-a[0]);
+        const maxP = order[0][0];
+        bars.innerHTML='';
+        order.forEach(([pr,ix])=>{
+          const r = el('div'); r.style.display='flex'; r.style.alignItems='center'; r.style.gap='8px'; r.style.margin='4px 0';
+          const lab = el('div','mono',VOCAB[ix]); lab.style.width='48px'; lab.style.fontSize='11.5px'; lab.style.color='var(--muted)'; lab.style.textAlign='right';
+          const track = el('div'); track.style.flex='1'; track.style.height='14px'; track.style.background='var(--panel-alt)'; track.style.borderRadius='4px'; track.style.overflow='hidden';
+          const fill = el('div'); fill.style.height='100%'; fill.style.width=(pr*100).toFixed(1)+'%'; fill.style.background = pr===maxP ? 'linear-gradient(90deg,var(--teal),#8FF5E4)' : 'linear-gradient(90deg,var(--amber),#FFC98A)';
+          track.appendChild(fill);
+          const val = el('div','mono',(pr*100).toFixed(1)+'%'); val.style.width='42px'; val.style.fontSize='11px'; val.style.color='var(--dim)';
+          r.appendChild(lab); r.appendChild(track); r.appendChild(val);
+          bars.appendChild(r);
+        });
+      }
+      slider.addEventListener('input', draw); draw();
+    }
+  }
+};
+
+let activeKey = null;
+function openPanel(key){
+  activeKey = key;
+  const c = COMPONENTS[key];
+  const panel = document.getElementById('infoPanel');
+  panel.innerHTML = '';
+  const badgeClass = c.group==='enc'?'enc':c.group==='dec'?'dec':'shared';
+  const badgeText = c.group==='enc'?'Encoder':c.group==='dec'?'Decoder':'Shared';
+  const badge = el('div','panel-badge '+badgeClass); badge.innerHTML = `<span class="dot"></span>${badgeText}`;
+  panel.appendChild(badge);
+  panel.appendChild(el('h2','',c.title));
+  panel.appendChild(el('p','explain', c.explain));
+  panel.appendChild(el('div','formula', c.formula));
+  const body = el('div'); panel.appendChild(body);
+  c.render(body);
+  highlightSelected(key);
+}
+
+/* ======================= THREE.JS SCENE ======================= */
+const wrap = document.getElementById('canvasWrap');
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x070A12, 12, 32);
+const camera = new THREE.PerspectiveCamera(40, wrap.clientWidth/wrap.clientHeight, 0.1, 100);
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.88;
+wrap.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xAFC7FF, 0x05070C, 0.52));
+const dl = new THREE.DirectionalLight(0xffffff, 0.58); dl.position.set(5,12,7); scene.add(dl);
+const dlTeal = new THREE.PointLight(0x4DEBD6, 0.82, 22); dlTeal.position.set(-3.8,5.6,3.4); scene.add(dlTeal);
+const dlCross = new THREE.PointLight(0xFF7A9A, 0.74, 22); dlCross.position.set(3.8,7.1,3.4); scene.add(dlCross);
+const dlViolet = new THREE.PointLight(0x9B8CFF, 0.48, 24); dlViolet.position.set(0,8.4,-4.2); scene.add(dlViolet);
+
+// floor grid
+const grid = new THREE.GridHelper(20, 24, 0x24345A, 0x18233D);
+grid.position.y = -1.05;
+grid.material.transparent = true; grid.material.opacity = 0.28;
+scene.add(grid);
+
+const floorGlow = new THREE.Mesh(
+  new THREE.CircleGeometry(7.4, 80),
+  new THREE.MeshBasicMaterial({ color:0x4DEBD6, transparent:true, opacity:0.035, depthWrite:false })
+);
+floorGlow.rotation.x = -Math.PI/2;
+floorGlow.position.y = -1.045;
+scene.add(floorGlow);
+
+const GAP = 0.92;
+const LEFT_X = -2.35, RIGHT_X = 2.35;
+const BOX_W=2.5, BOX_H=0.58, BOX_D=1.25;
+
+const ENCODER_DEFS = [
+  {key:'input_embedding', label:'Input Embedding', color:0x4F6BFF},
+  {key:'pos_encoding_enc', label:'Positional Encoding', color:0xFFB11F},
+  {key:'mha_enc', label:'Multi-Head Attention', color:0x00E5C7, repeat:true},
+  {key:'addnorm1_enc', label:'Add & Norm', color:0x7D8BFF, repeat:true},
+  {key:'ffn_enc', label:'Feed Forward', color:0x54F06D, repeat:true},
+  {key:'addnorm2_enc', label:'Add & Norm', color:0x7D8BFF, repeat:true},
+];
+const DECODER_DEFS = [
+  {key:'output_embedding', label:'Summary Token Embedding', color:0x4F6BFF},
+  {key:'pos_encoding_dec', label:'Positional Encoding', color:0xFFB11F},
+  {key:'mha_dec', label:'Masked Multi-Head Attn.', color:0x00BFA6, repeat:true},
+  {key:'addnorm1_dec', label:'Add & Norm', color:0x7D8BFF, repeat:true},
+  {key:'cross_attn', label:'Cross-Attention', color:0xFF3E72, repeat:true},
+  {key:'addnorm2_dec', label:'Add & Norm', color:0x7D8BFF, repeat:true},
+  {key:'ffn_dec', label:'Feed Forward', color:0x54F06D, repeat:true},
+  {key:'addnorm3_dec', label:'Add & Norm', color:0x7D8BFF, repeat:true},
+  {key:'linear_proj', label:'Linear', color:0x8B5CFF},
+  {key:'softmax', label:'Softmax', color:0x00E5C7},
+];
+
+function makeLabel(text, color, fontsize, opts){
+  fontsize = fontsize||28;
+  opts = opts || {};
+  const padding = opts.padding || 10;
+  const canvas=document.createElement('canvas'); const ctx=canvas.getContext('2d');
+  ctx.font = `${opts.weight || 700} ${fontsize}px monospace`;
+  const w = Math.ceil(ctx.measureText(text).width)+padding*2;
+  canvas.width=w; canvas.height=fontsize+padding*2;
+  if(opts.bg){
+    const r = opts.radius || 8;
+    ctx.fillStyle = opts.bg;
+    ctx.beginPath();
+    ctx.moveTo(r, 0);
+    ctx.lineTo(canvas.width-r, 0);
+    ctx.quadraticCurveTo(canvas.width, 0, canvas.width, r);
+    ctx.lineTo(canvas.width, canvas.height-r);
+    ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width-r, canvas.height);
+    ctx.lineTo(r, canvas.height);
+    ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height-r);
+    ctx.lineTo(0, r);
+    ctx.quadraticCurveTo(0, 0, r, 0);
+    ctx.fill();
+  }
+  ctx.font = `${opts.weight || 700} ${fontsize}px monospace`;
+  ctx.fillStyle = color||'#EDEAE0';
+  ctx.textBaseline='middle';
+  ctx.textAlign='center';
+  if(opts.shadow !== false){
+    ctx.shadowColor = opts.shadowColor || 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = opts.shadowBlur || 8;
+    ctx.shadowOffsetX = opts.shadowOffsetX || 0;
+    ctx.shadowOffsetY = opts.shadowOffsetY || 2;
+  }
+  if(opts.stroke !== false){
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = opts.strokeWidth || Math.max(4, Math.round(fontsize * 0.22));
+    ctx.strokeStyle = opts.strokeColor || 'rgba(3,7,18,0.96)';
+    ctx.strokeText(text, canvas.width/2, canvas.height/2);
+  }
+  ctx.fillText(text, canvas.width/2, canvas.height/2);
+  const tex = new THREE.CanvasTexture(canvas); tex.minFilter=THREE.LinearFilter;
+  const mat = new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false});
+  const sprite = new THREE.Sprite(mat);
+  const scale = opts.scale || 0.0105;
+  sprite.scale.set(canvas.width*scale, canvas.height*scale, 1);
+  sprite.renderOrder = 999;
+  return sprite;
+}
+
+const interactiveMeshes = [];
+const meshByKey = {};
+const connectorLines = [];
+const accentSurfaces = [];
+const group = new THREE.Group();
+scene.add(group);
+
+function addStarField(){
+  const geo = new THREE.BufferGeometry();
+  const positions = [];
+  const colors = [];
+  const palette = [new THREE.Color(0x4DEBD6), new THREE.Color(0xFF7A9A), new THREE.Color(0x9B8CFF), new THREE.Color(0xF4F7FB)];
+  for(let i=0;i<260;i++){
+    const r = 9 + Math.random()*12;
+    const a = Math.random()*Math.PI*2;
+    positions.push(Math.cos(a)*r, Math.random()*11 - 1.4, Math.sin(a)*r - 5);
+    const c = palette[Math.floor(Math.random()*palette.length)];
+    colors.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const mat = new THREE.PointsMaterial({ size:0.035, vertexColors:true, transparent:true, opacity:0.48, depthWrite:false });
+  const stars = new THREE.Points(geo, mat);
+  stars.userData.spin = 0.00018;
+  scene.add(stars);
+  accentSurfaces.push(stars);
+}
+addStarField();
+
+function addColumnBackplate(x, color, height){
+  const geo = new THREE.BoxGeometry(BOX_W + 0.62, height, 0.06);
+  const mat = new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.025, depthWrite:false });
+  const plate = new THREE.Mesh(geo, mat);
+  plate.position.set(x, height/2 - GAP*0.28, -0.82);
+  group.add(plate);
+  accentSurfaces.push(plate);
+
+  const edgeGeo = new THREE.EdgesGeometry(geo);
+  const edgeMat = new THREE.LineBasicMaterial({ color, transparent:true, opacity:0.9 });
+  const edge = new THREE.LineSegments(edgeGeo, edgeMat);
+  plate.add(edge);
+
+  const frameGeo = new THREE.BoxGeometry(BOX_W + 0.82, height + 0.18, BOX_D + 0.5);
+  const frameEdges = new THREE.EdgesGeometry(frameGeo);
+  const frameMat = new THREE.LineBasicMaterial({ color, transparent:true, opacity:0.72 });
+  const frame = new THREE.LineSegments(frameEdges, frameMat);
+  frame.position.set(x, height/2 - GAP*0.28, 0);
+  group.add(frame);
+}
+
+function buildColumn(defs, xPos){
+  defs.forEach((def, idx)=>{
+    const y = idx*GAP;
+    const geo = new THREE.BoxGeometry(BOX_W, BOX_H, BOX_D);
+    const mat = new THREE.MeshPhysicalMaterial({
+      color:def.color, roughness:0.28, metalness:0.16, clearcoat:0.5, clearcoatRoughness:0.24,
+      transparent:false, opacity:1, emissive:def.color, emissiveIntensity:0.11
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(xPos, y, 0);
+    mesh.userData = { key:def.key, baseColor:def.color, baseEmissive:0.11, baseY:y, phase:idx*0.55 + (xPos>0 ? 1.1 : 0) };
+    group.add(mesh);
+    interactiveMeshes.push(mesh);
+    meshByKey[def.key] = mesh;
+
+    // crisp edge outline (always on, subtle)
+    const edges = new THREE.EdgesGeometry(geo);
+    const edgeMat = new THREE.LineBasicMaterial({ color:0xFFFFFF, transparent:true, opacity:0.36 });
+    const edgeLines = new THREE.LineSegments(edges, edgeMat);
+    mesh.add(edgeLines);
+
+    // face label
+    const label = makeLabel(def.label, '#FFFFFF', 24, {
+      padding:16,
+      scale:0.01,
+      weight:800,
+      strokeWidth:6,
+      shadowBlur:7
+    });
+    label.position.set(0, 0, BOX_D/2 + 0.12);
+    mesh.add(label);
+
+    // flow connector to previous block
+    if(idx>0){
+      const prevY = (idx-1)*GAP;
+      addFlowConnector(xPos, prevY+BOX_H/2, y-BOX_H/2, 0x5A6480);
+    }
+  });
+}
+addColumnBackplate(LEFT_X, 0x4DEBD6, ENCODER_DEFS.length*GAP + 0.32);
+addColumnBackplate(RIGHT_X, 0xFF7A9A, DECODER_DEFS.length*GAP + 0.32);
+buildColumn(ENCODER_DEFS, LEFT_X);
+buildColumn(DECODER_DEFS, RIGHT_X);
+
+function addFlowConnector(x, y0, y1, color){
+  const pts = [ new THREE.Vector3(x,y0,0), new THREE.Vector3(x,y1,0) ];
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color, transparent:true, opacity:0.55 });
+  const line = new THREE.Line(geo, mat);
+  line.userData.baseOpacity = 0.55;
+  group.add(line);
+  connectorLines.push(line);
+  const coneGeo = new THREE.ConeGeometry(0.045, 0.11, 10);
+  const coneMat = new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.7 });
+  const cone = new THREE.Mesh(coneGeo, coneMat);
+  cone.position.set(x, y1-0.02, 0);
+  group.add(cone);
+}
+
+function yOf(defs, key){ return defs.findIndex(d=>d.key===key)*GAP; }
+
+// bracket + Nx annotation per repeating range
+function addRepeatBracket(xSide, defs, color, facing=1){
+  const idxs = defs.map((d,i)=>d.repeat?i:null).filter(v=>v!==null);
+  const y0 = Math.min(...idxs)*GAP - BOX_H/2 - 0.08;
+  const y1 = Math.max(...idxs)*GAP + BOX_H/2 + 0.08;
+  const bx = xSide;
+
+  // facing=1 opens the bracket toward the right; facing=-1 opens toward the left.
+  const tipX = bx + facing*0.15;
+  const pts = [
+    new THREE.Vector3(tipX,y0,0),
+    new THREE.Vector3(bx,y0,0),
+    new THREE.Vector3(bx,y1,0),
+    new THREE.Vector3(tipX,y1,0)
+  ];
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color, transparent:true, opacity:0.65 });
+  group.add(new THREE.Line(geo,mat));
+
+  const lbl = makeLabel('× N', ('#'+color.toString(16).padStart(6,'0')), 30);
+  lbl.position.set(bx - facing*0.35, (y0+y1)/2, 0);
+  group.add(lbl);
+}
+
+// Encoder bracket sits on the left, so its corners face right toward the encoder.
+// Decoder bracket sits on the right, so its corners face left toward the decoder.
+addRepeatBracket(LEFT_X - BOX_W/2 - 0.95, ENCODER_DEFS, 0x5EEAD4, 1);
+addRepeatBracket(RIGHT_X + BOX_W/2 + 0.35, DECODER_DEFS, 0xF0916A, -1);
+
+// residual arcs (outer sides)
+function addArc(xCol, y0,y1,color,side){
+  const armX = xCol + side*(BOX_W/2 + 0.55);
+  const mid = new THREE.Vector3(armX, (y0+y1)/2, 0);
+  const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(xCol+side*BOX_W/2,y0,0), mid, new THREE.Vector3(xCol+side*BOX_W/2,y1,0));
+  const pts = curve.getPoints(20);
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineDashedMaterial({ color, dashSize:0.11, gapSize:0.07, transparent:true, opacity:0.55 });
+  const line = new THREE.Line(geo, mat); line.computeLineDistances(); line.userData.baseOpacity = 0.55;
+  group.add(line);
+  connectorLines.push(line);
+}
+addArc(LEFT_X, yOf(ENCODER_DEFS,'pos_encoding_enc'), yOf(ENCODER_DEFS,'addnorm1_enc'), 0x5EEAD4, -1);
+addArc(LEFT_X, yOf(ENCODER_DEFS,'addnorm1_enc'), yOf(ENCODER_DEFS,'addnorm2_enc'), 0xF2A65A, -1);
+addArc(RIGHT_X, yOf(DECODER_DEFS,'pos_encoding_dec'), yOf(DECODER_DEFS,'addnorm1_dec'), 0x2E8F82, 1);
+addArc(RIGHT_X, yOf(DECODER_DEFS,'addnorm1_dec'), yOf(DECODER_DEFS,'addnorm2_dec'), 0xF0916A, 1);
+addArc(RIGHT_X, yOf(DECODER_DEFS,'addnorm2_dec'), yOf(DECODER_DEFS,'addnorm3_dec'), 0xF2A65A, 1);
+
+// encoder -> decoder cross-attention memory line (through the middle)
+(function(){
+  const y0 = yOf(ENCODER_DEFS,'addnorm2_enc'), y1 = yOf(DECODER_DEFS,'cross_attn');
+  const mid = new THREE.Vector3(0, (y0+y1)/2 + 0.3, 0);
+  const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(LEFT_X+BOX_W/2, y0, 0), mid, new THREE.Vector3(RIGHT_X-BOX_W/2, y1, 0));
+  const pts = curve.getPoints(28);
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineDashedMaterial({ color:0x5EEAD4, dashSize:0.13, gapSize:0.08, transparent:true, opacity:0.8 });
+  const line = new THREE.Line(geo, mat); line.computeLineDistances(); line.userData.baseOpacity = 0.8;
+  group.add(line);
+  connectorLines.push(line);
+  const lbl = makeLabel('encoder memory → K, V', '#5EEAD4', 22);
+  lbl.position.set(0, (y0+y1)/2 + 0.55, 0);
+  group.add(lbl);
+})();
+
+// output probabilities plate (decorative, sits above softmax)
+(function(){
+  const ySoftmax = yOf(DECODER_DEFS,'softmax');
+  const yTop = ySoftmax + GAP*0.85;
+  addFlowConnector(RIGHT_X, ySoftmax+BOX_H/2, yTop-0.28, 0x5EEAD4);
+  const geo = new THREE.BoxGeometry(BOX_W*0.92, 0.4, BOX_D*0.92);
+  const mat = new THREE.MeshPhysicalMaterial({ color:0x00E5C7, transparent:true, opacity:0.32, emissive:0x00E5C7, emissiveIntensity:0.34, roughness:0.28 });
+  const plate = new THREE.Mesh(geo, mat);
+  plate.position.set(RIGHT_X, yTop, 0);
+  group.add(plate);
+  const lbl = makeLabel('Output Probabilities', '#FFFFFF', 26, {padding:14, scale:0.01, weight:800, strokeWidth:6, shadowBlur:8});
+  lbl.position.set(RIGHT_X, yTop, BOX_D/2);
+  group.add(lbl);
+})();
+
+// token plates below the input columns
+let tokenPlateEnc=null, tokenPlateDec=null;
+function updateTokenPlates(){
+  if(tokenPlateEnc){ group.remove(tokenPlateEnc); }
+  if(tokenPlateDec){ group.remove(tokenPlateDec); }
+  const yBelow = -GAP*0.85;
+  tokenPlateEnc = makeLabel('in: '+state.tokens.join(' · '), '#8FF5E4', 22);
+  tokenPlateEnc.position.set(LEFT_X, yBelow, 0);
+  group.add(tokenPlateEnc);
+  tokenPlateDec = makeLabel('out (shifted): '+state.tokens.join(' · '), '#F7B491', 22);
+  tokenPlateDec.position.set(RIGHT_X, yBelow, 0);
+  group.add(tokenPlateDec);
+}
+
+// column titles
+(function(){
+  const encTitle = makeLabel('ENCODER', '#5EEAD4', 34);
+  encTitle.position.set(LEFT_X, (ENCODER_DEFS.length-1)*GAP + 0.95, BOX_D/2 + 0.18);
+  group.add(encTitle);
+  const decTitle = makeLabel('DECODER', '#F0916A', 34);
+  decTitle.position.set(RIGHT_X, (DECODER_DEFS.length-1)*GAP + 0.95, BOX_D/2 + 0.18);
+  group.add(decTitle);
+})();
+
+// ghost repeat layers (visual depth cue for stacking)
+let ghostMeshes = [];
+function rebuildGhosts(count){
+  ghostMeshes.forEach(m=>group.remove(m));
+  ghostMeshes = [];
+  const extra = Math.max(0, count-1);
+  [ENCODER_DEFS, DECODER_DEFS].forEach(defs=>{
+    defs.filter(d=>d.repeat).forEach(def=>{
+      const base = meshByKey[def.key];
+      for(let g=1; g<=Math.min(extra,3); g++){
+        const geo = new THREE.BoxGeometry(BOX_W, BOX_H, BOX_D);
+        const mat = new THREE.MeshBasicMaterial({ color:base.userData.baseColor, transparent:true, opacity:0.04, depthWrite:false });
+        const m = new THREE.Mesh(geo, mat);
+        m.position.set(base.position.x, base.position.y, base.position.z - g*0.4);
+        group.add(m); ghostMeshes.push(m);
+      }
+    });
+  });
+}
+rebuildGhosts(6);
+
+// selection outline + glow
+let outlineMesh=null, glowSprite=null;
+function highlightSelected(key){
+  if(outlineMesh){ group.remove(outlineMesh); outlineMesh=null; }
+  if(glowSprite){ group.remove(glowSprite); glowSprite=null; }
+  const mesh = meshByKey[key];
+  if(!mesh) return;
+  const geo = new THREE.BoxGeometry(BOX_W+0.1, BOX_H+0.1, BOX_D+0.1);
+  const edges = new THREE.EdgesGeometry(geo);
+  const mat = new THREE.LineBasicMaterial({ color:mesh.userData.baseColor, transparent:true, opacity:0.98 });
+  outlineMesh = new THREE.LineSegments(edges, mat);
+  outlineMesh.position.copy(mesh.position);
+  group.add(outlineMesh);
+
+  const canvas = document.createElement('canvas'); canvas.width=128; canvas.height=128;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(64,64,4,64,64,64);
+  const c = new THREE.Color(mesh.userData.baseColor);
+  const rgb = `${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)}`;
+  grad.addColorStop(0,`rgba(${rgb},0.70)`); grad.addColorStop(1,`rgba(${rgb},0)`);
+  ctx.fillStyle=grad; ctx.fillRect(0,0,128,128);
+  const tex = new THREE.CanvasTexture(canvas);
+  const smat = new THREE.SpriteMaterial({ map:tex, transparent:true, depthTest:false, blending:THREE.AdditiveBlending });
+  glowSprite = new THREE.Sprite(smat);
+  glowSprite.scale.set(2.8,2.8,1);
+  glowSprite.position.copy(mesh.position);
+  glowSprite.renderOrder = 1;
+  group.add(glowSprite);
+}
+
+function setMeshFocus(mesh, amount){
+  if(!mesh || !mesh.material) return;
+  mesh.material.emissiveIntensity = mesh.userData.baseEmissive + amount*0.36;
+  mesh.material.opacity = 0.9 + amount*0.06;
+}
+
+/* ---- camera controls (manual orbit + idle auto-rotate) ---- */
+const decoderTop = (DECODER_DEFS.length-1)*GAP + 1.4;
+const target = new THREE.Vector3(0, decoderTop/2, 0);
+const DEFAULT_RADIUS = decoderTop*1.22+4.2;
+const spherical = { radius: DEFAULT_RADIUS, theta:0.42, phi:1.16 };
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function updateCamera(){
+  camera.position.x = target.x + spherical.radius*Math.sin(spherical.phi)*Math.sin(spherical.theta);
+  camera.position.y = target.y + spherical.radius*Math.cos(spherical.phi);
+  camera.position.z = target.z + spherical.radius*Math.sin(spherical.phi)*Math.cos(spherical.theta);
+  camera.lookAt(target);
+}
+updateCamera();
+
+let dragging=false, lastX=0, lastY=0, downX=0, downY=0, downTime=0, lastInteract=Date.now();
+wrap.addEventListener('pointerdown', e=>{
+  dragging=true; lastX=e.clientX; lastY=e.clientY; downX=e.clientX; downY=e.clientY; downTime=Date.now();
+  lastInteract=Date.now();
+  wrap.classList.add('dragging');
+  wrap.setPointerCapture(e.pointerId);
+});
+wrap.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  lastInteract=Date.now();
+  const dx = e.clientX-lastX, dy = e.clientY-lastY;
+  lastX=e.clientX; lastY=e.clientY;
+  spherical.theta -= dx*0.006;
+  spherical.phi = clamp(spherical.phi - dy*0.006, 0.25, Math.PI-0.25);
+  updateCamera();
+});
+wrap.addEventListener('pointerup', e=>{
+  dragging=false; wrap.classList.remove('dragging');
+  const dist = Math.hypot(e.clientX-downX, e.clientY-downY);
+  if(dist < 6 && Date.now()-downTime < 500){
+    handleClick(e);
+  }
+});
+wrap.addEventListener('wheel', e=>{
+  e.preventDefault(); lastInteract=Date.now();
+  spherical.radius = clamp(spherical.radius + e.deltaY*0.012, decoderTop*0.35, decoderTop*2.4);
+  updateCamera();
+}, { passive:false });
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+function handleClick(e){
+  const rect = wrap.getBoundingClientRect();
+  mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(interactiveMeshes);
+  if(hits.length){ openPanel(hits[0].object.userData.key); }
+}
+wrap.addEventListener('pointermove', e=>{
+  if(dragging) return;
+  const rect = wrap.getBoundingClientRect();
+  mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(interactiveMeshes);
+  wrap.style.cursor = hits.length ? 'pointer' : 'grab';
+});
+
+function onResize(){
+  camera.aspect = wrap.clientWidth/wrap.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+}
+window.addEventListener('resize', onResize);
+
+function animate(){
+  requestAnimationFrame(animate);
+  if(!dragging && Date.now()-lastInteract > 2600){
+    spherical.theta += 0.0009;
+    updateCamera();
+  }
+  renderer.render(scene, camera);
+}
+animate();
+
+/* ======================= LEFT BLOCK INSPECTOR ======================= */
+const inspector = document.getElementById('blockInspector');
+const inspectorTitle = document.getElementById('inspectorTitle');
+const inspectorKicker = document.getElementById('inspectorKicker');
+const inspectorMath = document.getElementById('inspectorMath');
+const inspectorNote = document.getElementById('inspectorNote');
+const miniWrap = document.getElementById('mini3d');
+const miniScene = new THREE.Scene();
+const miniCamera = new THREE.PerspectiveCamera(42, 1, 0.1, 30);
+miniCamera.position.set(2.8, 2.2, 4.2);
+miniCamera.lookAt(0, 0, 0);
+const miniRenderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+miniRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+miniWrap.appendChild(miniRenderer.domElement);
+miniScene.add(new THREE.HemisphereLight(0xffffff, 0x05070C, 0.85));
+const miniLight = new THREE.DirectionalLight(0xffffff, 1.1); miniLight.position.set(3,4,5); miniScene.add(miniLight);
+const miniAccent = new THREE.PointLight(0x4DEBD6, 1.2, 8); miniAccent.position.set(-2,1.6,2.4); miniScene.add(miniAccent);
+const miniGroup = new THREE.Group(); miniScene.add(miniGroup);
+
+function formatVec(vec, n){
+  return '[' + vec.slice(0,n||4).map(v=>v.toFixed(2)).join(', ') + (vec.length>(n||4) ? ', ...' : '') + ']';
+}
+function mathRowsForKey(key){
+  const i = 0;
+  const rows = [];
+  const decoderSide = key==='output_embedding' || key==='pos_encoding_out' ||
+    key==='mha_dec' || key==='addnorm1_dec' || key==='cross_attn' ||
+    key==='addnorm2_dec' || key==='ffn_dec' || key==='addnorm3_dec' ||
+    key==='linear_proj' || key==='softmax';
+  const token = decoderSide
+    ? (state.targetTokens[i] || 'summary-token')
+    : (state.tokens[i] || 'source-token');
+  if(key.includes('embedding')){
+    rows.push(['lookup', `E["${token}"] = ${formatVec(state.embeddings[i]||[], 4)}`]);
+    rows.push(['output', `token vector in R^${D}`]);
+  }else if(key.includes('pos_encoding')){
+    rows.push(['position signal', `PE(0) = ${formatVec(state.positions[i]||[], 4)}`]);
+    rows.push(['sum', `x = embedding + PE = ${formatVec(state.X[i]||[], 4)}`]);
+  }else if(key==='mha_enc'){
+    const weights = state.fp.attnEnc.weights[i] || [];
+    const top = weights.map((v,j)=>[v,j]).sort((a,b)=>b[0]-a[0])[0] || [0,0];
+    rows.push(['score', 'softmax(QK^T / sqrt(dk))']);
+    rows.push(['strongest link', `"${token}" -> "${state.tokens[top[1]]}" = ${(top[0]*100).toFixed(1)}%`]);
+    rows.push(['output', `weighted V = ${formatVec(state.fp.attnEnc.out[i]||[], 4)}`]);
+  }else if(key==='mha_dec'){
+    const weights = state.fp.attnDecSelf.weights[i] || [];
+    rows.push(['mask', 'future positions become -Infinity before softmax']);
+    rows.push(['visible weights', weights.map(v=>v.toFixed(2)).join('  ')]);
+  }else if(key==='cross_attn'){
+    const weights = state.fp.attnCross.weights[i] || [];
+    const top = weights.map((v,j)=>[v,j]).sort((a,b)=>b[0]-a[0])[0] || [0,0];
+    rows.push(['query source', 'Q from decoder state']);
+    rows.push(['key/value source', 'K,V from encoder memory']);
+    rows.push(['best memory read', `"${state.tokens[top[1]]}" = ${(top[0]*100).toFixed(1)}%`]);
+  }else if(key.includes('addnorm')){
+    const map = ADDNORM_MAP[key];
+    const x = map.x(i), sub = map.sub(i);
+    const combined = addVec(x, sub);
+    const normed = layerNorm(combined);
+    rows.push(['residual', `x + sublayer(x) = ${formatVec(combined, 4)}`]);
+    rows.push(['normalize', `mean ${normed.mean.toFixed(3)}, variance ${normed.variance.toFixed(3)}`]);
+    rows.push(['output', `LayerNorm(...) = ${formatVec(normed.out, 4)}`]);
+  }else if(key.includes('ffn')){
+    const source = key==='ffn_enc' ? state.fp.addnorm1[i] : state.fp.addnorm2d[i];
+    const out = ffnForward(source);
+    rows.push(['expand', `8 -> 16 hidden, ReLU active values: ${out.h.filter(v=>v>0).length}`]);
+    rows.push(['project', `16 -> 8 output = ${formatVec(out.o, 4)}`]);
+  }else if(key==='linear_proj'){
+    const scores = matVecMul(state.fp.addnorm3d[i], W.Wvocab);
+    rows.push(['projection', 'decoder vector x W_vocab']);
+    rows.push(['logits', formatVec(scores, 5)]);
+  }else if(key==='softmax'){
+    const scores = matVecMul(state.fp.addnorm3d[i], W.Wvocab);
+    const probs = softmax(scores, 1);
+    const best = probs.map((p,ix)=>[p,ix]).sort((a,b)=>b[0]-a[0])[0];
+    rows.push(['normalization', 'exp(logit) / sum(exp(logits))']);
+    rows.push(['top token', `"${VOCAB[best[1]]}" = ${(best[0]*100).toFixed(1)}%`]);
+  }
+  return rows;
+}
+function inspectorKind(key){
+  if(key.includes('embedding')) return 'Token lookup';
+  if(key.includes('pos_encoding')) return 'Position add';
+  if(key.includes('mha') || key==='cross_attn') return 'Attention block';
+  if(key.includes('addnorm')) return 'Residual + norm';
+  if(key.includes('ffn')) return 'MLP block';
+  if(key==='linear_proj') return 'Vocabulary projection';
+  return 'Probability output';
+}
+function addMiniLabel(text, y){
+  const lbl = makeLabel(text, '#FFFFFF', 22, {padding:8, scale:0.008, weight:800, strokeWidth:5});
+  lbl.position.set(0, y, 0.8);
+  miniGroup.add(lbl);
+}
+function rebuildMini3D(key){
+  while(miniGroup.children.length) miniGroup.remove(miniGroup.children[0]);
+  const C={t:0x4DEBD6,a:0xFFCC66,c:0xFF7A9A,v:0x9B8CFF,g:0x9BFF8A,b:0x4F6BFF,w:0xF4F7FB};
+  function box(x,y,w,h,color,label){
+    const geo=new THREE.BoxGeometry(w,h,.55),mat=new THREE.MeshPhysicalMaterial({color,emissive:color,emissiveIntensity:.14,roughness:.28});
+    const m=new THREE.Mesh(geo,mat);m.position.set(x,y,0);miniGroup.add(m);
+    m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.35})));
+    if(label){const q=makeLabel(label,'#fff',17,{padding:7,scale:.0062,weight:800,strokeWidth:4});q.position.set(0,0,.38);m.add(q);} return m;
+  }
+  function arrow(x1,y1,x2,y2,color){
+    const a=new THREE.Vector3(x1,y1,0),b=new THREE.Vector3(x2,y2,0),d=b.clone().sub(a);
+    miniGroup.add(new THREE.ArrowHelper(d.clone().normalize(),a,d.length(),color,.14,.07));
+    for(let i=0;i<3;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(.055,12,8),new THREE.MeshBasicMaterial({color}));p.userData.flow={a,b,o:i/3};miniGroup.add(p);}
+  }
+  function tokens(x,y,color,label){
+    // Read directly from the current input every time the left operation scene is rebuilt.
+    // This prevents stale default tokens such as "the cat sat down" from remaining visible.
+    const sourceLive = tokenize(document.getElementById('sentenceInput').value);
+    const targetLive = tokenize(document.getElementById('targetInput').value);
+    const decoderSide = key==='output_embedding' || key==='pos_encoding_out' ||
+      key==='mha_dec' || key==='addnorm1_dec' || key==='cross_attn' ||
+      key==='addnorm2_dec' || key==='ffn_dec' || key==='addnorm3_dec' ||
+      key==='linear_proj' || key==='softmax';
+    const currentTokens = decoderSide
+      ? (targetLive.length ? targetLive : state.targetTokens)
+      : (sourceLive.length ? sourceLive : state.tokens);
+    const n = Math.min(6, currentTokens.length);
+
+    // Keep 5–6 tokens inside a compact local width so they do not overlap
+    // the next computation block in the operation pipeline.
+    const maxTokenSpan = 1.72;
+    const spacing = n <= 4 ? 0.46 : maxTokenSpan / Math.max(1, n - 1);
+    const tokenW = n <= 4 ? 0.40 : Math.max(0.27, spacing * 0.82);
+
+    for(let i=0;i<n;i++){
+      const tokenX = x + (i-(n-1)/2)*spacing;
+      const tokenBox = box(tokenX,y,tokenW,.25,color,currentTokens[i]);
+
+      // Scale long labels down on compact 5–6 word layouts.
+      if(n > 4 && tokenBox.children){
+        tokenBox.children.forEach(child=>{
+          if(child.isSprite){
+            const maxSpriteW = tokenW * 0.92;
+            if(child.scale.x > maxSpriteW){
+              const ratio = maxSpriteW / child.scale.x;
+              child.scale.x *= ratio;
+              child.scale.y *= ratio;
+            }
+          }
+        });
+      }
+    }
+    const q=makeLabel(label,'#fff',15,{padding:6,scale:.0058,weight:800,strokeWidth:4});
+    q.position.set(x,y+.42,.1);miniGroup.add(q);
+  }
+  function matrix(x,y,color,label){
+    for(let r=0;r<3;r++)for(let c=0;c<4;c++)box(x+(c-1.5)*.2,y+(1-r)*.2,.16,.16,color,'');
+    const q=makeLabel(label,'#fff',15,{padding:6,scale:.0058,weight:800,strokeWidth:4});q.position.set(x,y+.55,.1);miniGroup.add(q);
+  }
+
+  if(key.includes('mha')||key==='cross_attn'){
+    // Attention needs more horizontal room than other operations.
+    // For cross-attention: Q comes from decoder summary state; K and V come from encoder source memory.
+    if(key==='cross_attn'){
+      const savedTarget = state.targetTokens;
+      tokens(-2.15,1.18,C.c,'decoder summary state → Q');
+      // Draw source-memory identity explicitly as a separate lane.
+      const src = tokenize(document.getElementById('sentenceInput').value);
+      const nsrc=Math.min(6,src.length), sp=nsrc<=4?.46:1.72/Math.max(1,nsrc-1), tw=nsrc<=4?.40:Math.max(.27,sp*.82);
+      for(let i=0;i<nsrc;i++) box(-2.15+(i-(nsrc-1)/2)*sp,-.15,tw,.25,C.b,src[i]);
+      const sl=makeLabel('encoder source memory → K, V','#fff',15,{padding:6,scale:.0058,weight:800,strokeWidth:4});sl.position.set(-2.15,.25,.1);miniGroup.add(sl);
+    }else{
+      tokens(-2.15,1.18,C.b,key==='mha_dec'?'decoder summary tokens':'encoder source tokens');
+    }
+
+    box(-1.15,.55,.55,.38,C.t,'Wq');
+    box(-1.15,-.05,.55,.38,C.a,'Wk');
+    box(-1.15,-.65,.55,.38,C.v,'Wv');
+
+    box(-.25,.55,.45,.34,C.t,'Q');
+    box(-.25,-.05,.45,.34,C.a,'K');
+    box(-.25,-.65,.45,.34,C.v,'V');
+
+    matrix(.72,.22,key==='mha_dec'?C.c:C.a,key==='mha_dec'?'mask + scores':'QKᵀ/√d');
+    box(1.72,.22,.72,.42,C.g,'softmax');
+    box(1.72,-.72,.8,.45,C.t,'Σ αV');
+
+    // Fan out from the centered input lane into Q/K/V projections.
+    if(key==='cross_attn'){
+      arrow(-2.15,.98,-1.48,.55,C.t);   // decoder state -> Wq
+      arrow(-2.15,-.28,-1.48,-.05,C.a); // encoder memory -> Wk
+      arrow(-2.15,-.28,-1.48,-.65,C.v); // encoder memory -> Wv
+      arrow(-.82,.55,-.5,.55,C.t);
+      arrow(-.82,-.05,-.5,-.05,C.a);
+      arrow(-.82,-.65,-.5,-.65,C.v);
+    }else{
+      [[.55,C.t],[-.05,C.a],[-.65,C.v]].forEach(([yy,col])=>{
+        arrow(-2.15,.98,-1.48,yy,col);
+        arrow(-.82,yy,-.5,yy,col);
+      });
+    }
+
+    // Q and K both participate in the dot-product score computation.
+    // Show two separate animated flows into QKᵀ / √d (or masked scores).
+    arrow(0,.55,.30,.36,C.t);      // Query -> score matrix
+    arrow(0,-.05,.30,.10,C.a);     // Key   -> score matrix
+
+    // Scores -> softmax -> weighted value sum.
+    arrow(1.14,.22,1.34,.22,C.g);
+    arrow(1.72,-.04,1.72,-.47,C.t);
+
+    // V bypasses the QK dot product and joins after softmax weighting.
+    arrow(0,-.65,1.28,-.72,C.v);
+  }else if(key.includes('addnorm')){
+    tokens(-1.8,.6,C.b,'residual x');
+    box(-1.8,-.6,1,.45,C.t,'Sublayer(x)');
+    box(-.45,0,.5,.5,C.w,'+');
+    box(.55,0,.85,.55,C.a,'LayerNorm');
+
+    // Separate output tokens from LayerNorm so token 1 never overlaps it.
+    tokens(2.35,0,C.v,'output y');
+
+    arrow(-1.05,.55,-.72,.15,C.b);
+    arrow(-1.28,-.55,-.72,-.15,C.t);
+    arrow(-.18,0,.1,0,C.w);
+    arrow(1,0,1.55,0,C.v);
+  }else if(key.includes('ffn')){
+    tokens(-1.9,0,C.b,'x ∈ ℝ⁸');
+    box(-.9,0,.7,.55,C.v,'W₁+b₁');
+    matrix(.1,0,C.g,'ReLU 16-d');
+    box(1.05,0,.7,.55,C.a,'W₂+b₂');
+
+    // Keep the first output token clear of W₂+b₂, especially with 5–6 words.
+    tokens(2.55,0,C.t,'y ∈ ℝ⁸');
+
+    arrow(-1.35,0,-1.27,0,C.b);
+    arrow(-.53,0,-.38,0,C.g);
+    arrow(.5,0,.68,0,C.a);
+    arrow(1.42,0,1.72,0,C.t);
+  }else if(key.includes('pos_encoding')){
+    tokens(-1.8,.55,C.b,'embedding E');matrix(-1.8,-.6,C.a,'sin/cos PE');box(-.35,0,.5,.5,C.w,'+');tokens(1.45,0,C.t,'E + PE');
+    arrow(-1,.5,-.62,.15,C.b);arrow(-1,-.5,-.62,-.15,C.a);arrow(-.08,0,.7,0,C.t);
+  }else if(key==='softmax'){
+    tokens(-1.7,0,C.c,'logits z');box(-.2,0,1.05,.62,C.g,'exp(z)/Σexp');matrix(1.45,0,C.t,'probabilities');arrow(-.95,0,-.75,0,C.c);arrow(.35,0,.85,0,C.g);
+  }else if(key==='linear_proj'){
+    tokens(-1.7,0,C.v,'decoder state');matrix(-.2,0,C.a,'W_vocab');tokens(1.5,0,C.c,'logits');arrow(-.95,0,-.65,0,C.v);arrow(.3,0,.8,0,C.c);
+  }else{
+    tokens(-1.7,0,C.b,'tokens');box(-.2,0,.9,.62,C.v,key.includes('embedding')?'lookup table':'transform');matrix(1.35,0,C.t,'output vectors');arrow(-.95,0,-.68,0,C.b);arrow(.28,0,.82,0,C.t);
+  }
+  miniZoom=(key.includes('mha')||key==='cross_attn')?7.4:
+           (key.includes('ffn')||key.includes('addnorm'))?7.2:6.5;
+  miniYaw=-.1;miniPitch=-.06;miniPanX=0;miniPanY=0;
+  applyMiniView();miniRenderer.render(miniScene,miniCamera);
+}
+function resizeMini3D(){
+  const w = miniWrap.clientWidth || 320, h = miniWrap.clientHeight || 178;
+  miniRenderer.setSize(w, h, false);
+  miniCamera.aspect = w/h;
+  miniCamera.updateProjectionMatrix();
+}
+function renderInspectorMath(key){
+  inspectorMath.innerHTML = '';
+  mathRowsForKey(key).forEach(([label,value])=>{
+    const row = el('div','math-row');
+    row.appendChild(el('div','math-label',label));
+    const val = el('div','math-value');
+    val.textContent = value;
+    row.appendChild(val);
+    inspectorMath.appendChild(row);
+  });
+}
+function updateBlockInspector(key){
+  const c = COMPONENTS[key]; if(!c) return;
+  inspector.classList.add('open');
+  if(window.innerWidth<1050) inspector.classList.add('compact');
+  inspectorTitle.textContent = c.title;
+  inspectorKicker.textContent = inspectorKind(key);
+  inspectorNote.textContent = c.formula;
+  resizeMini3D();
+  rebuildMini3D(key);
+  renderInspectorMath(key);
+}
+document.getElementById('inspectorCompact').addEventListener('click',()=>{
+  inspector.classList.toggle('compact');
+  document.getElementById('inspectorCompact').textContent=inspector.classList.contains('compact')?'⇥':'↔';
+  setTimeout(resizeMini3D,260);
+});
+document.getElementById('inspectorClose').addEventListener('click',()=>{
+  inspector.classList.remove('open'); inspector.classList.remove('compact');
+});
+window.addEventListener('resize', resizeMini3D);
+window.addEventListener('resize', resizeMini3D);
+
+// Zoom + pan controls for the left operation inspector.
+// Mouse wheel / trackpad: zoom. Drag: orbit. Shift+drag: pan. Double-click: reset.
+let miniZoom = 6.5;
+let miniYaw = -0.1, miniPitch = -0.06;
+let miniPanX = 0, miniPanY = 0;
+let miniDragging = false, miniPanning = false;
+let miniLastX = 0, miniLastY = 0;
+
+function applyMiniView(){
+  miniZoom = Math.max(3.2, Math.min(11.5, miniZoom));
+  miniPitch = Math.max(-0.75, Math.min(0.75, miniPitch));
+  miniCamera.position.set(miniPanX, 1.1 + miniPanY, miniZoom);
+  miniCamera.lookAt(miniPanX, miniPanY, 0);
+  miniGroup.rotation.x = miniPitch;
+  miniGroup.rotation.y = miniYaw;
+}
+
+function resetMiniView(){
+  miniZoom = 6.5;
+  miniYaw = -0.1;
+  miniPitch = -0.06;
+  miniPanX = 0;
+  miniPanY = 0;
+  applyMiniView();
+}
+
+miniWrap.style.cursor = 'grab';
+miniWrap.title = 'Wheel to zoom · drag to rotate · Shift+drag to pan · double-click to reset';
+
+miniWrap.addEventListener('wheel', e=>{
+  e.preventDefault();
+  miniZoom += e.deltaY * 0.006;
+  applyMiniView();
+}, {passive:false});
+
+miniWrap.addEventListener('pointerdown', e=>{
+  miniDragging = true;
+  miniPanning = e.shiftKey || e.button === 1;
+  miniLastX = e.clientX; miniLastY = e.clientY;
+  miniWrap.setPointerCapture(e.pointerId);
+  miniWrap.style.cursor = miniPanning ? 'move' : 'grabbing';
+});
+
+miniWrap.addEventListener('pointermove', e=>{
+  if(!miniDragging) return;
+  const dx = e.clientX - miniLastX, dy = e.clientY - miniLastY;
+  miniLastX = e.clientX; miniLastY = e.clientY;
+  if(miniPanning){
+    miniPanX -= dx * 0.006 * (miniZoom/6.5);
+    miniPanY += dy * 0.006 * (miniZoom/6.5);
+  }else{
+    miniYaw += dx * 0.008;
+    miniPitch += dy * 0.008;
+  }
+  applyMiniView();
+});
+
+function endMiniDrag(e){
+  miniDragging = false;
+  miniWrap.style.cursor = 'grab';
+  if(e && miniWrap.hasPointerCapture && miniWrap.hasPointerCapture(e.pointerId)) miniWrap.releasePointerCapture(e.pointerId);
+}
+miniWrap.addEventListener('pointerup', endMiniDrag);
+miniWrap.addEventListener('pointercancel', endMiniDrag);
+miniWrap.addEventListener('dblclick', resetMiniView);
+
+
+// Live mini-scene: slowly rotates the selected block structure so its internal
+// Q/K/V, residual, FFN, projection, etc. arrangement is visible in 3D.
+function animateMiniInspector(){
+  requestAnimationFrame(animateMiniInspector);
+  if(inspector.classList.contains('open')){
+    const t=performance.now()/1000;
+    miniGroup.traverse(o=>{if(o.userData&&o.userData.flow){const f=o.userData.flow,u=(t*.28+f.o)%1;o.position.lerpVectors(f.a,f.b,u);}});
+    // Keep the user's manual zoom/orbit/pan view stable while data particles animate.
+    miniRenderer.render(miniScene,miniCamera);
+  }
+}
+animateMiniInspector();
+
+/* ======================= ENHANCED INTERACTIONS ======================= */
+const PIPELINE_ORDER = [
+  'input_embedding','pos_encoding_enc','mha_enc','addnorm1_enc','ffn_enc','addnorm2_enc',
+  'output_embedding','pos_encoding_dec','mha_dec','addnorm1_dec','cross_attn','addnorm2_dec',
+  'ffn_dec','addnorm3_dec','linear_proj','softmax'
+];
+const inspected = new Set();
+let tourIndex = -1, tourTimer = null, flowActive = false;
+const hoverTip = document.getElementById('hoverTip');
+const progressFill = document.getElementById('progressFill');
+const progressCount = document.getElementById('progressCount');
+const progressLabel = document.getElementById('progressLabel');
+const tourStatus = document.getElementById('tourStatus');
+const toast = document.getElementById('appToast');
+
+function showToast(msg){
+  const liveToast = document.getElementById('appToast');
+  if(!liveToast) return;
+  liveToast.textContent=msg; liveToast.classList.add('show');
+  clearTimeout(showToast.t); showToast.t=setTimeout(()=>liveToast.classList.remove('show'),1800);
+}
+function updateProgress(){
+  const pct = inspected.size/PIPELINE_ORDER.length*100;
+  progressFill.style.width=pct+'%';
+  progressCount.textContent=`${inspected.size} / ${PIPELINE_ORDER.length} inspected`;
+}
+function focusBlock(key){
+  const mesh=meshByKey[key]; if(!mesh) return;
+  target.y += (mesh.position.y-target.y)*0.42;
+  spherical.theta += (key.includes('dec') || key==='cross_attn' || key==='linear_proj' || key==='softmax') ? -0.045 : 0.045;
+  updateCamera();
+}
+function visitBlock(key, focus=true){
+  inspected.add(key); updateProgress(); openPanel(key);
+  if(focus) focusBlock(key);
+}
+function addPanelNavigation(){
+  const panel=document.getElementById('infoPanel');
+  if(panel.querySelector('.panel-nav')) return;
+  const nav=el('div','panel-nav');
+  const prev=el('button','','← Previous');
+  const next=el('button','accent-btn','Next →');
+  prev.onclick=()=>{const i=Math.max(0,PIPELINE_ORDER.indexOf(activeKey)-1);visitBlock(PIPELINE_ORDER[i]);};
+  next.onclick=()=>{const i=Math.min(PIPELINE_ORDER.length-1,PIPELINE_ORDER.indexOf(activeKey)+1);visitBlock(PIPELINE_ORDER[i]);};
+  nav.append(prev,next); panel.appendChild(nav);
+}
+const originalOpenPanel = openPanel;
+openPanel = function(key){
+  originalOpenPanel(key);
+  inspected.add(key); updateProgress();
+  updateBlockInspector(key);
+  addPanelNavigation();
+};
+
+function stopTour(){
+  clearInterval(tourTimer); tourTimer=null;
+  document.getElementById('tourBtn').textContent='▶ Step-by-Step Tour';
+  tourStatus.textContent='explore mode';
+}
+function advanceTour(){
+  tourIndex=(tourIndex+1)%PIPELINE_ORDER.length;
+  const key=PIPELINE_ORDER[tourIndex];
+  visitBlock(key);
+  progressLabel.textContent=`Step-by-Step Tour · ${tourIndex+1}/${PIPELINE_ORDER.length} · ${COMPONENTS[key].title}`;
+  tourStatus.textContent='tour running';
+  if(tourIndex===PIPELINE_ORDER.length-1){ stopTour(); showToast('Tour complete — every block inspected'); }
+}
+document.getElementById('tourBtn').addEventListener('click',()=>{
+  if(tourTimer){stopTour();return;}
+  advanceTour();
+  document.getElementById('tourBtn').textContent='⏸ Pause Tour';
+  tourTimer=setInterval(advanceTour,3200);
+});
+document.getElementById('resetViewBtn').addEventListener('click',()=>{
+  spherical.radius=DEFAULT_RADIUS; spherical.theta=.42; spherical.phi=1.16;
+  target.set(0,decoderTop/2,0); updateCamera(); showToast('Camera reset');
+});
+
+const flowParticles=[];
+function createFlowParticles(){
+  PIPELINE_ORDER.forEach((key,idx)=>{
+    const base=meshByKey[key]; if(!base) return;
+    const geo=new THREE.SphereGeometry(.055,10,10);
+    const mat=new THREE.MeshBasicMaterial({color:base.userData.baseColor,transparent:true,opacity:0});
+    const p=new THREE.Mesh(geo,mat); p.userData.phase=idx*.48; group.add(p); flowParticles.push(p);
+  });
+}
+createFlowParticles();
+
+
+let hoveredKey=null;
+wrap.addEventListener('pointermove',e=>{
+  if(dragging) return;
+  const rect=wrap.getBoundingClientRect();
+  mouse.x=((e.clientX-rect.left)/rect.width)*2-1; mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(interactiveMeshes);
+  const key=hits.length?hits[0].object.userData.key:null;
+  if(key!==hoveredKey){
+    if(hoveredKey && meshByKey[hoveredKey]){
+      meshByKey[hoveredKey].scale.setScalar(1);
+      setMeshFocus(meshByKey[hoveredKey], hoveredKey===activeKey ? 0.7 : 0);
+    }
+    hoveredKey=key;
+    if(key){
+      meshByKey[key].scale.setScalar(1.035);
+      setMeshFocus(meshByKey[key], 1);
+      hoverTip.textContent=COMPONENTS[key].title+' · click to inspect';
+      hoverTip.classList.add('show');
+    }else hoverTip.classList.remove('show');
+  }
+  hoverTip.style.left=(e.clientX-rect.left)+'px'; hoverTip.style.top=(e.clientY-rect.top)+'px';
+});
+wrap.addEventListener('pointerleave',()=>{
+  if(hoveredKey&&meshByKey[hoveredKey]){
+    meshByKey[hoveredKey].scale.setScalar(1);
+    setMeshFocus(meshByKey[hoveredKey], hoveredKey===activeKey ? 0.7 : 0);
+  }
+  hoveredKey=null;hoverTip.classList.remove('show');
+});
+
+window.addEventListener('keydown',e=>{
+  if(e.target.matches('input,textarea')) return;
+  if(e.key==='ArrowRight'){const i=Math.min(PIPELINE_ORDER.length-1,Math.max(-1,PIPELINE_ORDER.indexOf(activeKey))+1);visitBlock(PIPELINE_ORDER[i]);}
+  if(e.key==='ArrowLeft'){const i=Math.max(0,PIPELINE_ORDER.indexOf(activeKey)-1);visitBlock(PIPELINE_ORDER[i]);}
+  if(e.key.toLowerCase()==='r')document.getElementById('resetViewBtn').click();
+});
+
+const originalAnimate = animate;
+let enhancedClock = new THREE.Clock();
+function animateEnhancements(){
+  requestAnimationFrame(animateEnhancements);
+  const t=enhancedClock.getElapsedTime();
+  interactiveMeshes.forEach(mesh=>{
+    const isActive = mesh.userData.key===activeKey;
+    const isHovered = mesh.userData.key===hoveredKey;
+    const pulse = isActive ? 0.7 + Math.sin(t*3.2)*0.16 : 0;
+    if(!isHovered) setMeshFocus(mesh, pulse);
+    mesh.rotation.y = Math.sin(t*0.85 + mesh.userData.phase)*0.012;
+  });
+  if(outlineMesh && activeKey && meshByKey[activeKey]){
+    outlineMesh.position.copy(meshByKey[activeKey].position);
+    outlineMesh.scale.setScalar(1 + Math.sin(t*4)*0.018);
+  }
+  if(glowSprite && activeKey && meshByKey[activeKey]){
+    glowSprite.position.copy(meshByKey[activeKey].position);
+    glowSprite.material.opacity = 0.72 + Math.sin(t*3.4)*0.16;
+    glowSprite.scale.setScalar(3.15 + Math.sin(t*2.8)*0.25);
+  }
+  connectorLines.forEach((line,i)=>{
+    const base = line.userData.baseOpacity || 0.5;
+    line.material.opacity = base + (flowActive ? 0.22*Math.max(0, Math.sin(t*3.4 + i*.65)) : 0.06*Math.max(0, Math.sin(t*1.6 + i)));
+  });
+  accentSurfaces.forEach((obj,i)=>{
+    if(obj.material) obj.material.opacity = (obj.type==='Points' ? 0.42 : 0.065) + Math.sin(t*0.9+i)*0.018;
+    obj.rotation.y += obj.userData.spin || 0;
+  });
+  flowParticles.forEach((p,i)=>{
+    const key=PIPELINE_ORDER[i], base=meshByKey[key]; if(!base) return;
+    if(false && flowActive){
+      const local=(t*0.7-p.userData.phase)%8;
+      p.material.opacity=local>=0&&local<1.5 ? Math.sin((local/1.5)*Math.PI)*.95 : 0;
+      p.position.set(base.position.x,base.position.y-BOX_H*.2+Math.sin(t*3+i)*.08,base.position.z+BOX_D*.68);
+      p.scale.setScalar(1+Math.sin(t*5+i)*.25);
+    }else p.material.opacity*=.88;
+  });
+}
+animateEnhancements();
+updateProgress();
+
+/* ======================= WIRING ======================= */
+document.getElementById('recomputeBtn').addEventListener('click', ()=>{
+  enforceSixWordLimit('sentenceInput','wordCount','source');
+enforceSixWordLimit('targetInput','targetWordCount','summary');
+recompute();
+  if(activeKey && typeof rebuildMini3D === 'function'){
+    rebuildMini3D(activeKey);
+    miniRenderer.render(miniScene, miniCamera);
+  }
+});
+
+let liveInputTimer = null;
+function scheduleLiveRecompute(kind){
+  enforceSixWordLimit(
+    kind==='summary'?'targetInput':'sentenceInput',
+    kind==='summary'?'targetWordCount':'wordCount',
+    kind
+  );
+  clearTimeout(liveInputTimer);
+  liveInputTimer = setTimeout(()=>{
+    recompute();
+    if(activeKey && typeof rebuildMini3D === 'function'){
+      rebuildMini3D(activeKey);
+      miniRenderer.render(miniScene, miniCamera);
+    }
+  },180);
+}
+document.getElementById('sentenceInput').addEventListener('input',()=>scheduleLiveRecompute('source'));
+document.getElementById('targetInput').addEventListener('input',()=>scheduleLiveRecompute('summary'));
+document.getElementById('sentenceInput').addEventListener('keydown', e=>{ if(e.key==='Enter') recompute(); });
+document.getElementById('depthSlider').addEventListener('input', e=>{
+  document.getElementById('depthVal').textContent = '×'+e.target.value;
+  rebuildGhosts(parseInt(e.target.value,10));
+});
+
+recompute();
+})();
+</script>
+<div class="toast" id="appToast"></div>
+</body>
+</html>
