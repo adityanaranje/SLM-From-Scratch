@@ -242,6 +242,58 @@
 @media (max-width:480px){
   .viewer-col{height:62vh!important;min-height:430px!important}
 }
+
+/* Real-phone fallback: also applies when mobile browser requests Desktop site */
+@media (hover:none) and (pointer:coarse){
+  html,body{overflow-x:hidden!important}
+  .stage{
+    display:flex!important;
+    flex-direction:column!important;
+    height:auto!important;
+    min-height:0!important;
+  }
+  .viewer-col{
+    position:relative!important;
+    order:1!important;
+    width:100%!important;
+    height:68svh!important;
+    min-height:480px!important;
+    max-height:760px!important;
+    overflow:hidden!important;
+    flex:none!important;
+  }
+  .viewer-col canvas{
+    display:block!important;
+    width:100%!important;
+    height:100%!important;
+    touch-action:none!important;
+  }
+  .detail-panel{
+    order:2!important;
+    position:relative!important;
+    width:100%!important;
+    min-height:420px!important;
+    max-height:none!important;
+  }
+  .block-inspector{
+    position:absolute!important;
+    left:8px!important;
+    right:8px!important;
+    top:auto!important;
+    bottom:10px!important;
+    width:auto!important;
+    max-height:46svh!important;
+    margin:0!important;
+    z-index:20!important;
+  }
+  .progress-shell{
+    position:absolute!important;
+    left:8px!important;
+    right:8px!important;
+    bottom:8px!important;
+    z-index:8!important;
+  }
+}
 </style>
 
 <style id="enhanced-interactions">
@@ -1234,6 +1286,46 @@ function onResize(){
   renderer.setSize(wrap.clientWidth, wrap.clientHeight);
 }
 window.addEventListener('resize', onResize);
+
+// Touch controls for the main 3D architecture:
+// one finger keeps existing orbit behavior; two fingers pinch to zoom.
+// Works in normal mobile view and browser "Desktop site" mode.
+let mainPinchDistance=null;
+let mainPinchStartZ=null;
+
+function touchDistance(touches){
+  const dx=touches[0].clientX-touches[1].clientX;
+  const dy=touches[0].clientY-touches[1].clientY;
+  return Math.hypot(dx,dy);
+}
+
+renderer.domElement.style.touchAction='none';
+
+renderer.domElement.addEventListener('touchstart',e=>{
+  if(e.touches.length===2){
+    e.preventDefault();
+    mainPinchDistance=touchDistance(e.touches);
+    mainPinchStartZ=camera.position.z;
+  }
+},{passive:false});
+
+renderer.domElement.addEventListener('touchmove',e=>{
+  if(e.touches.length===2 && mainPinchDistance){
+    e.preventDefault();
+    const d=touchDistance(e.touches);
+    const ratio=mainPinchDistance/Math.max(1,d);
+    camera.position.z=Math.max(7,Math.min(34,mainPinchStartZ*ratio));
+    if(controls && typeof controls.update==='function') controls.update();
+  }
+},{passive:false});
+
+renderer.domElement.addEventListener('touchend',e=>{
+  if(e.touches.length<2){
+    mainPinchDistance=null;
+    mainPinchStartZ=null;
+  }
+},{passive:false});
+
 
 function animate(){
   requestAnimationFrame(animate);
